@@ -295,6 +295,10 @@ const TOOLS = [
     name:'Vessel Move Reconciliation', tag:'Vessel · Move Recap',
     href:'tools/vessel/vessel-move-reconciliation/index.html',
     description:'Uploads the container move list for a vessel call and reconciles discharge, load, and restow moves by container category and size, broken down per operator.' },
+  { area:'Vessel', order:20, status:'live', icon:'ico-vessel',
+    name:'Inbound BAPLIE Correction', tag:'Vessel · EDI/BAPLIE',
+    href:'tools/vessel/baplie-correction/index.html',
+    description:'Validates an inbound BAPLIE EDI file, identifies the shipping line automatically, applies that carrier’s formatting-correction rules, and generates a corrected file ready for the TOS.' },
 ];
 
 /* SHA-256 of each area's password — the gate compares against these

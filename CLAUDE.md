@@ -51,11 +51,12 @@ El hub usa 6 tarjetas de **área operativa** en la página de inicio (no pestañ
 | **Yard Strategy** | `tools/strategy/yard-strategy/` | Mapa interactivo de bloques del patio para definir y ajustar la estrategia de yard — clasificar bloques, asignar servicios/líneas y revisar capacidad por clase. Guarda su estado en `localStorage` (nada sale del navegador). Tiene su propio candado interno adicional para la pestaña "Configuration" (contraseña embebida en el JS del archivo — es de ese archivo, no del gate de SMART Hub; no lo confundas con `AREA_HASHES`). |
 | **Export & Empty Analysis** | `tools/strategy/export-empty-analysis/` | El usuario sube dos Excel (lista de movimientos de carga + detalle de visitas de buque) y la herramienta calcula TEUs de exportación por POD/servicio, perfil de peso y TEUs vacíos por línea, usando SheetJS 100% en el navegador. |
 
-**Vessel** tiene su primera herramienta:
+**Vessel** tiene dos herramientas:
 
 | Herramienta | Carpeta | Qué hace |
 |---|---|---|
 | **Vessel Move Reconciliation** | `tools/vessel/vessel-move-reconciliation/` | El usuario sube la lista de movimientos de contenedores de una escala de buque (xlsx/xls/csv) y la herramienta concilia discharge, load y restow por categoría de contenedor (Dry, Reefer, Tank, Flat Rack, Pallet Wide) y tamaño, desglosado por naviera. Usa SheetJS, 100% en el navegador. ⚠️ Esta herramienta usa la tipografía Google Fonts "Plus Jakarta Sans" y valores de color aproximados en vez de Maersk Text / la paleta exacta del skill `apm-terminals-brand` — se incorporó tal cual porque ya funcionaba y el usuario solo pidió agregarla; si en algún momento se quiere alinear 100% a la marca, es un ajuste pendiente. |
+| **Inbound BAPLIE Correction** | `tools/vessel/baplie-correction/` | El usuario carga un EDI/BAPLIE de entrada; la herramienta corre validaciones obligatorias (bloquea si hay `+PHA+` o `TBD_` sin corregir), identifica automáticamente la naviera (SSL) por posición estructural en `UNB+`/`TDT+` (con banner de conflicto o selección manual si no hay match único), aplica las reglas de corrección de formato propias de esa naviera (de las 8 soportadas: MAE, CMA, ZIM, COS, OCL, ONE, EGL, MSC) y genera el archivo corregido listo para el TOS. 100% en el navegador, sin backend. Documentación completa del spec original: `Inbound_BAPLIE_Correction_Tool_Documentation.md` (en `C:\Users\ADP037\Downloads`, no está en este repo — ver nota en "Próximo paso acordado" sobre guardarla en Cowork). Ya sigue la marca al 100% (Maersk Text embebido, paleta exacta, modo día/noche). |
 
 Yard, Gate, Rail y VAS siguen vacías — cada una debe mostrar su estado vacío hasta que se agregue su primera herramienta real.
 
@@ -100,7 +101,8 @@ smarthub/                            <-- repo GitHub (carpeta local sigue llamá
     │   ├── yard-strategy/index.html
     │   └── export-empty-analysis/index.html
     ├── vessel/
-    │   └── vessel-move-reconciliation/index.html
+    │   ├── vessel-move-reconciliation/index.html
+    │   └── baplie-correction/index.html
     ├── yard/<nombre>/index.html
     ├── gate/<nombre>/index.html
     ├── rail/<nombre>/index.html
@@ -118,4 +120,6 @@ Cada herramienta nueva va en `tools/<área>/<nombre>/index.html`, autocontenida 
 
 ## Próximo paso acordado
 
-Seguir construyendo herramientas reales por área (Yard, Gate, Rail, VAS todavía no tienen ninguna) y agregar su entrada a `TOOLS` en `index.html` con el `area` correcto al terminarlas. Cuando una herramienta ya exista como archivo HTML fuera del repo (como pasó con las tres ya incorporadas), copiarla a `tools/<área>/<nombre>/index.html` tal cual si ya sigue la marca APM (Maersk Text, paleta oficial, inglés) — no reescribirla sin necesidad. Si no sigue la marca al 100% (caso de `vessel-move-reconciliation`, ver arriba), incorporarla igual tal cual salvo que el usuario pida explícitamente alinearla.
+Seguir construyendo herramientas reales por área (Yard, Gate, Rail, VAS todavía no tienen ninguna) y agregar su entrada a `TOOLS` en `index.html` con el `area` correcto al terminarlas. Cuando una herramienta ya exista como archivo HTML fuera del repo (como pasó con las cuatro ya incorporadas), copiarla a `tools/<área>/<nombre>/index.html` tal cual si ya sigue la marca APM (Maersk Text, paleta oficial, inglés) — no reescribirla sin necesidad. Si no sigue la marca al 100% (caso de `vessel-move-reconciliation`, ver arriba), incorporarla igual tal cual salvo que el usuario pida explícitamente alinearla.
+
+**Pendiente — "Cowork":** el usuario pidió crear un proyecto en algo llamado "Cowork" y guardar ahí `Inbound_BAPLIE_Correction_Tool_Documentation.md` y el HTML de esa herramienta como adjuntos. Ningún tool disponible en esta sesión de Claude Code corresponde a "Cowork" (no es el repo, ni Claude Design, ni ningún MCP conectado) — se le preguntó al usuario a qué se refiere exactamente y quedó pendiente de respuesta. El HTML ya se incorporó al hub (`tools/vessel/baplie-correction/`); el `.md` de documentación sigue solo en `C:\Users\ADP037\Downloads`, no se copió a este repo.
