@@ -292,6 +292,10 @@ table.tbl tr:hover td{background:#fafbfd}
 <div class="toast" id="toast"></div>
 <input type="file" id="fileInput" accept="application/json" style="display:none">
 
+<!-- Shared storage: Firestore holds the yard strategy state so every
+     viewer sees the same data. See FIREBASE_CONFIG below. -->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script>
 /* =====================================================================
    APM Terminals Mobile — Yard Strategy
@@ -325,7 +329,38 @@ const COL_ORDER=['6','5','4','3','2','1'];
 const COL_LABEL={'6':'Block 600','5':'Block 500','4':'Block 400','3':'Block 300','2':'Block 200','1':'Block 100'};
 const PALETTE=['#FF6441','#0A6E82','#42B0D5','#F0BE78','#1B3C8C','#009B48','#E5007D','#8A1538','#6C3B9C','#0E76BC','#E35205','#17A398','#AD1457','#5D4037','#37474F','#C8102E','#00B0F0','#92D050','#FF99FF','#9E9787','#9933FF','#FFC000','#0070C0','#00B050','#8C2E00','#CCFF99'];
 const PASSWORD='StrategyMobile';
-const LS_KEY='apmt_yard_strategy_v5';
+
+/* ---------- Shared storage (Firebase Firestore) ----------
+   Every viewer's browser reads and writes the SAME document, so a change
+   made here from any unlocked Configuration session — on any computer —
+   is visible to everyone else who has this page open, live.
+   Replace the placeholder values below with your own Firebase project's
+   web config (Firebase console → Project settings → General → "Your
+   apps" → SDK setup and configuration → Config). This object is meant to
+   be public/client-side — Firebase expects it in the page source; access
+   control lives in the project's Firestore Security Rules, not in hiding
+   this object.
+   NOTE: there is no real authentication behind this — same spirit as the
+   Configuration password above and every other access gate in SMART Hub.
+   The companion Firestore rules should simply allow open read/write for
+   this one document, so treat this exactly like the rest of the site: a
+   light deterrent, not real security. Never route sensitive operational
+   data through this mechanism. */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCjIzO1NH4rZ8rgnI67v0iAEKOhj5YWD28",
+  authDomain: "apmt-mobile-smarthub.firebaseapp.com",
+  projectId: "apmt-mobile-smarthub",
+  storageBucket: "apmt-mobile-smarthub.firebasestorage.app",
+  messagingSenderId: "467929676982",
+  appId: "1:467929676982:web:8f6009a40a4ffb33447a17",
+};
+let stateDocRef=null;
+if(FIREBASE_CONFIG.apiKey!=='REPLACE_ME' && window.firebase){
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);
+    stateDocRef=firebase.firestore().collection('yardStrategy').doc('state');
+  }catch(e){ console.error('Firebase init failed',e); }
+}
 
 /* geometry */
 const STD_LEN=152, H_ANCHO=27, H_THIN=14;
@@ -358,16 +393,34 @@ function defaultState(){
     dLabels:{south:'South',north:'North'},
   };
 }
-function load(){
-  try{const raw=localStorage.getItem(LS_KEY);if(raw){state=JSON.parse(raw);
-    ['classification','otherDetails','emptyLines','moduleService','servicePods'].forEach(k=>{if(!state[k])state[k]={};});
-    ['lines','services','pods'].forEach(k=>{if(!state[k])state[k]=[];});
-    if(!state.dLabels)state.dLabels={south:'South',north:'North'};
-    MODULES.forEach(m=>{if(!state.classification[m.id])state.classification[m.id]=m.cls||'UNC';});
-    return;}}catch(e){}
-  state=defaultState();
+function load(){ state=defaultState(); } // instant first paint; subscribeSharedState() brings in the real shared data
+
+function save(){
+  if(!stateDocRef){ toast('Shared storage is not set up yet — this change will not be visible to others.'); return; }
+  stateDocRef.set(state).catch(()=>{ toast('Could not save — check your connection and try again.'); });
 }
-function save(){try{localStorage.setItem(LS_KEY,JSON.stringify(state));}catch(e){}}
+
+/* Live shared state: fires once on load, then again every time ANY
+   viewer's Configuration session saves a change — including this one. */
+function subscribeSharedState(onUpdate){
+  if(!stateDocRef){ toast('Shared storage is not set up yet — showing default data only.'); return; }
+  stateDocRef.onSnapshot(snap=>{
+    if(snap.exists){
+      state=snap.data();
+      ['classification','otherDetails','emptyLines','moduleService','servicePods'].forEach(k=>{if(!state[k])state[k]={};});
+      ['lines','services','pods'].forEach(k=>{if(!state[k])state[k]=[];});
+      if(!state.dLabels)state.dLabels={south:'South',north:'North'};
+      MODULES.forEach(m=>{if(!(m.id in state.classification))state.classification[m.id]=m.cls||'UNC';});
+    }else{
+      state=defaultState();
+      stateDocRef.set(state).catch(()=>{});
+    }
+    onUpdate();
+  }, err=>{
+    console.error('Firestore subscription error', err);
+    toast('Lost connection to shared storage — showing last known data.');
+  });
+}
 
 /* ---------- Helpers ---------- */
 const $=s=>document.querySelector(s);
@@ -752,7 +805,9 @@ function exportJSON(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'
 function importJSON(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const o=JSON.parse(r.result);if(!o.classification)throw 0;state=o;['classification','otherDetails','emptyLines','moduleService','servicePods'].forEach(k=>{if(!state[k])state[k]={};});['lines','services','pods'].forEach(k=>{if(!state[k])state[k]=[];});if(!state.dLabels)state.dLabels={south:'South',north:'North'};save();afterConfigChange();updateMapSub();toast('Configuration imported');}catch(err){toast('Invalid configuration file');}};r.readAsText(f);e.target.value='';}
 
 /* Boot */
-load();bind();renderKPIs();renderLegend();renderYard();renderDetail();populateFilters();updateMapSub();
+function renderAll(){renderKPIs();renderLegend();renderYard();renderDetail();populateFilters();updateMapSub();}
+load();bind();renderAll();
+subscribeSharedState(renderAll);
 })();
 </script>
 </body>

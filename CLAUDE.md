@@ -48,7 +48,7 @@ El hub usa 6 tarjetas de **área operativa** en la página de inicio (no pestañ
 
 | Herramienta | Carpeta | Qué hace |
 |---|---|---|
-| **Yard Strategy** | `tools/strategy/yard-strategy/` | Mapa interactivo de bloques del patio para definir y ajustar la estrategia de yard — clasificar bloques, asignar servicios/líneas y revisar capacidad por clase. Guarda su estado en `localStorage` (nada sale del navegador). Tiene su propio candado interno adicional para la pestaña "Configuration" (contraseña embebida en el JS del archivo — es de ese archivo, no del gate de SMART Hub; no lo confundas con `AREA_HASHES`). |
+| **Yard Strategy** | `tools/strategy/yard-strategy/` | Mapa interactivo de bloques del patio para definir y ajustar la estrategia de yard — clasificar bloques, asignar servicios/líneas y revisar capacidad por clase. Tiene su propio candado interno adicional para la pestaña "Configuration" (contraseña embebida en el JS del archivo, `StrategyMobile` — es de ese archivo, no del gate de SMART Hub; no lo confundas con `AREA_HASHES`). ⚠️ **Excepción a "100% client-side, cero backend":** esta es la única herramienta del hub con estado compartido real — usa **Firebase Firestore** (proyecto `apmt-mobile-smarthub`, cuenta del usuario, plan gratuito Spark) en vez de `localStorage`, para que un cambio guardado por cualquier persona desde Configuration se vea al instante en todas las pantallas que tengan la app abierta (verificado en vivo con dos pestañas). El objeto `FIREBASE_CONFIG` embebido en el JS es información pública (así es como Firebase espera que se distribuya su config web; la protección real está en las Firestore Security Rules, no en ocultar esas claves). Las Security Rules del proyecto están en modo abierto (`allow read, write: if true` para `yardStrategy/*`) — mismo espíritu que el resto de SMART Hub: un candado liviano (`StrategyMobile`), no autenticación real. Nunca subir datos operativos sensibles a este documento. |
 | **Export & Empty Analysis** | `tools/strategy/export-empty-analysis/` | El usuario sube dos Excel (lista de movimientos de carga + detalle de visitas de buque) y la herramienta calcula TEUs de exportación por POD/servicio, perfil de peso y TEUs vacíos por línea, usando SheetJS 100% en el navegador. |
 
 **Vessel** tiene dos herramientas:
@@ -73,8 +73,8 @@ En `index.html`, `AREA_HASHES` guarda el **SHA-256** de cada contraseña (nunca 
 
 ## Arquitectura técnica y seguridad (no negociable)
 
-- **100% client-side, cero backend.** No hay servidores, bases de datos ni APIs recibiendo datos de la terminal.
-- Los archivos que carga el usuario en cada herramienta (`.xlsx`, `.csv`, `.txt`) se procesan **exclusivamente en memoria del navegador**. Los datos operativos de la terminal nunca deben viajar por internet ni guardarse en GitHub.
+- **100% client-side, cero backend.** No hay servidores, bases de datos ni APIs recibiendo datos de la terminal. **Única excepción documentada:** `Yard Strategy` usa Firebase Firestore para compartir el estado del patio entre todos los que abren la app — decisión explícita del usuario (ver tabla de herramientas de Strategy arriba). No repetir este patrón en otra herramienta sin que el usuario lo pida de nuevo.
+- Los archivos que carga el usuario en cada herramienta (`.xlsx`, `.csv`, `.txt`) se procesan **exclusivamente en memoria del navegador**. Los datos operativos de la terminal nunca deben viajar por internet ni guardarse en GitHub. (De nuevo, `Yard Strategy` es la excepción: la *configuración* de estrategia del patio sí viaja a Firestore — no datos de carga/buques reales.)
 - **Nunca** subir al repo: API keys, contraseñas en texto plano, credenciales, tokens, ni archivos de datos reales/hardcodeados.
 - Como el repo es público, cualquier cosa que se suba es visible para todo el mundo — extremar cuidado con lo anterior.
 
