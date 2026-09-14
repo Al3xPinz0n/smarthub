@@ -606,19 +606,50 @@ function applyCallsign(parts, chunkIndex, providedValue){
   return { ok:true, changed:true, value: providedValue };
 }
 
+/* ==================== GENERAL REPLACEMENT RULES (all SSLs) ==================== */
+/* Applied to every file regardless of carrier, in addition to that carrier's
+   specific rules. Structural and exact — only the listed values, only in the
+   listed segments, nothing else in the file is touched. */
+
+function applyGeneralRules(parts){
+  let changed = false;
+
+  const locChunks = getChunksByTag(parts, "LOC+9+");
+  locChunks.forEach(c => {
+    const before = parts[c.index];
+    let content = before;
+    content = content.split("XXVUT").join("VNVUT");
+    content = content.split("XXCMT").join("VNCMT");
+    content = content.split("NLDDN").join("NLRTM");
+    if (content !== before) { parts[c.index] = content; changed = true; }
+  });
+
+  const nadChunks = getChunksByTag(parts, "NAD+");
+  nadChunks.forEach(c => {
+    const content = parts[c.index];
+    if (content.endsWith(":172:ZZZ")) {
+      parts[c.index] = content.slice(0, -":172:ZZZ".length) + ":172:20";
+      changed = true;
+    }
+  });
+
+  return { changed };
+}
+
 /* ==================== SSL RULES ==================== */
 
 function applySSL(company, originalText, providedCallsign){
   const parts = splitPreservingDelimiters(originalText);
   let needsInput = null;
+  const general = applyGeneralRules(parts);
 
   if (company === 'MAE') {
-    const newText = originalText.split("COCNR:").join("COCTG:");
+    const newText = joinParts(parts).split("COCNR:").join("COCTG:");
     return { text: newText, needsInput: null };
   }
 
   if (company === 'MSC') {
-    return { text: originalText, needsInput: null, noChangeNeeded: true };
+    return { text: joinParts(parts), needsInput: null, noChangeNeeded: !general.changed };
   }
 
   if (company === 'CMA') {
