@@ -1,0 +1,1867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quay Commander · SMART Hub</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  @font-face { font-family:'Maersk Text'; font-weight:300; font-style:normal; src:url('../../../assets/fonts/MaerskText-Light.ttf') format('truetype'); font-display:swap; }
+  @font-face { font-family:'Maersk Text'; font-weight:400; font-style:normal; src:url('../../../assets/fonts/MaerskText-Regular.ttf') format('truetype'); font-display:swap; }
+  @font-face { font-family:'Maersk Text'; font-weight:700; font-style:normal; src:url('../../../assets/fonts/MaerskText-Bold.ttf') format('truetype'); font-display:swap; }
+
+  :root {
+    --orange:#FF6441; --dark-gray:#3C3C46; --medium-gray:#5A6E7D; --neutral-gray:#AAB4C3;
+    --light-gray:#E6EBF2; --aqua:#0A6E82; --maersk-blue:#42B0D5; --soft-yellow:#F0BE78;
+    --white:#FFFFFF; --hero-dark:#22262E; --hero-darker:#191C22;
+    --good:#16a34a; --good-bg:#dcfce7; --bad:#dc2626; --bad-bg:#fee2e2;
+    --font:'Maersk Text', Arial, sans-serif;
+    --bg:#F4F6F9; --card:#FFFFFF; --border:#E1E6ED; --text:#2b2e36; --text-soft:#6b7280;
+  }
+  html[data-theme="dark"]{
+    --bg:#15171c; --card:#1d2027; --border:#2c3038; --text:#eef1f5; --text-soft:#9aa3b0;
+    --light-gray:#262a32;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:var(--font); background:var(--bg); color:var(--text); min-height:100vh; }
+  a { text-decoration:none; color:inherit; }
+
+  header.qc-header { background:var(--dark-gray); padding:0 2rem; min-height:88px; display:flex;
+                     align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.75rem;
+                     border-bottom:3px solid var(--orange); }
+  .qc-brand { display:flex; align-items:center; gap:1rem; }
+  .qc-logo { width:150px; flex-shrink:0; }
+  .qc-logo svg { display:block; width:100%; height:auto; }
+  .qc-divider { width:1px; align-self:stretch; min-height:40px; background:rgba(255,255,255,.15); }
+  .qc-titles { display:flex; flex-direction:column; }
+  .qc-tool-name { font-size:1.05rem; font-weight:700; color:#fff; letter-spacing:.01em; }
+  .qc-tool-name .ai { color:var(--orange); }
+  .qc-tool-sub { font-size:.66rem; color:var(--neutral-gray); letter-spacing:.03em; margin-top:.15rem; }
+  .qc-header-right { display:flex; align-items:center; gap:.9rem; }
+  .qc-back { font-size:.74rem; font-weight:700; color:var(--neutral-gray); border:1px solid rgba(255,255,255,.2);
+             padding:.45rem .8rem; border-radius:7px; transition:all .15s; }
+  .qc-back:hover { color:#fff; border-color:var(--orange); }
+  .theme-toggle { width:34px; height:34px; border-radius:8px; border:1px solid rgba(255,255,255,.2);
+                  background:transparent; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .theme-toggle svg { width:17px; height:17px; color:var(--neutral-gray); }
+  .theme-toggle svg * { fill:currentColor !important; }
+  .icon-moon { display:none; }
+  html[data-theme="dark"] .icon-sun { display:none; }
+  html[data-theme="dark"] .icon-moon { display:block; }
+
+  main.qc-main { max-width:1280px; margin:0 auto; padding:2.2rem 1.5rem 4rem; }
+
+  .qc-hero { margin-bottom:2rem; }
+  .qc-eyebrow { font-size:.66rem; font-weight:700; letter-spacing:.18em; text-transform:uppercase; color:var(--orange); margin-bottom:.6rem; }
+  .qc-h1 { font-size:1.9rem; font-weight:300; color:var(--text); letter-spacing:-.01em; }
+  .qc-h1 strong { font-weight:700; color:var(--orange); }
+  .qc-lede { font-size:.88rem; color:var(--text-soft); margin-top:.5rem; max-width:800px; line-height:1.6; }
+
+  .qc-step { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:1.7rem;
+             margin-bottom:1.5rem; }
+  .qc-step-head { display:flex; align-items:baseline; gap:.6rem; margin-bottom:1.2rem; }
+  .qc-step-num { width:26px; height:26px; border-radius:50%; background:var(--orange); color:#fff; font-size:.75rem;
+                 font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .qc-step-title { font-size:1.05rem; font-weight:700; }
+  .qc-step-hint { font-size:.76rem; color:var(--text-soft); margin-top:.15rem; }
+
+  .upload-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
+  .upload-card { border:1.5px dashed var(--border); border-radius:12px; padding:1.2rem; text-align:center;
+                 cursor:pointer; transition:all .15s; background:var(--bg); position:relative; }
+  .upload-card:hover, .upload-card.dragover { border-color:var(--orange); background:rgba(255,100,65,.06); }
+  .upload-card.filled { border-style:solid; border-color:var(--good); background:var(--good-bg); }
+  html[data-theme="dark"] .upload-card.filled { background:rgba(22,163,74,.12); }
+  .upload-card.error { border-style:solid; border-color:var(--bad); background:var(--bad-bg); }
+  html[data-theme="dark"] .upload-card.error { background:rgba(220,38,38,.12); }
+  .upload-card input[type=file] { display:none; }
+  .upload-icon { width:34px; height:34px; margin:0 auto .6rem; color:var(--orange); }
+  .upload-icon svg { width:100%; height:100%; }
+  .upload-icon svg * { fill:none !important; stroke:currentColor; stroke-width:1.6; }
+  .upload-label { font-size:.84rem; font-weight:700; }
+  .upload-req { font-size:.62rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--orange); margin-top:.2rem; }
+  .upload-opt { font-size:.62rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-soft); margin-top:.2rem; }
+  .upload-status { font-size:.72rem; color:var(--text-soft); margin-top:.5rem; line-height:1.5; }
+  .upload-status strong { color:var(--text); }
+  .upload-hint-small { font-size:.66rem; color:var(--text-soft); margin-top:.6rem; line-height:1.4; }
+  .upload-drop-hint { font-size:.62rem; color:var(--text-soft); margin-top:.3rem; opacity:.7; }
+
+  .warning-banner { background:var(--bad-bg); border:1px solid var(--bad); color:var(--bad); border-radius:10px;
+                     padding:.8rem 1rem; font-size:.78rem; margin-top:1rem; line-height:1.5; }
+
+  .vessel-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-top:1.2rem; }
+  .vs-item { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:.85rem 1rem; }
+  .vs-label { font-size:.62rem; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--text-soft); }
+  .vs-value { font-size:1rem; font-weight:700; margin-top:.25rem; }
+
+  .form-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1.1rem; }
+  .field { display:flex; flex-direction:column; gap:.4rem; }
+  .field label { font-size:.72rem; font-weight:700; color:var(--text-soft); text-transform:uppercase; letter-spacing:.04em; }
+  .field input, .field select { font-family:inherit; font-size:.86rem; padding:.65rem .8rem; border-radius:8px;
+                border:1.5px solid var(--border); background:var(--bg); color:var(--text); outline:none; transition:border-color .15s; }
+  .field input:focus, .field select:focus { border-color:var(--orange); }
+  .field-hint { font-size:.66rem; color:var(--text-soft); }
+
+  .btn { font-family:inherit; font-size:.86rem; font-weight:700; padding:.8rem 1.6rem; border-radius:9px;
+         border:none; cursor:pointer; transition:all .15s; display:inline-flex; align-items:center; gap:.5rem; }
+  .btn-primary { background:var(--orange); color:#fff; }
+  .btn-primary:hover { background:#e5522f; }
+  .btn-primary:disabled { background:var(--neutral-gray); cursor:not-allowed; }
+  .btn-secondary { background:transparent; border:1.5px solid var(--border); color:var(--text); }
+  .btn-secondary:hover { border-color:var(--orange); color:var(--orange); }
+  .btn-row { display:flex; justify-content:flex-end; margin-top:1.4rem; gap:.8rem; }
+
+  #results { display:none; }
+  #results.show { display:block; }
+
+  .exec-table-wrap { overflow-x:auto; }
+  table.exec-table { width:100%; border-collapse:collapse; font-size:.78rem; min-width:640px; }
+  table.exec-table th, table.exec-table td { padding:.55rem .7rem; border-bottom:1px solid var(--border); text-align:left; }
+  table.exec-table th { font-size:.66rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-soft); font-weight:700; }
+  table.exec-table td.metric-name { font-weight:700; color:var(--text-soft); white-space:nowrap; }
+  table.exec-table td.num { font-weight:700; text-align:right; font-variant-numeric:tabular-nums; }
+  .kpi-good { color:var(--good); }
+  .kpi-bad { color:var(--bad); }
+  .exec-table .recommended-col { background:rgba(255,100,65,.06); }
+  .ideal-tag { font-size:.6rem; color:var(--orange); font-weight:700; text-transform:uppercase; }
+
+  .scenario-block { border:1.5px solid var(--border); border-radius:14px; padding:1.4rem; background:var(--bg);
+                     margin-bottom:1.4rem; }
+  .scenario-block.recommended { border-color:var(--orange); box-shadow:0 6px 24px rgba(255,100,65,.14); }
+  .scenario-block-head { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:.5rem; margin-bottom:1rem; }
+  .scenario-title { font-size:1.05rem; font-weight:700; }
+  .scenario-role { font-size:.7rem; color:var(--orange); font-weight:700; text-transform:uppercase; letter-spacing:.04em; margin-left:.5rem; }
+  .scenario-shift { font-size:.72rem; color:var(--text-soft); }
+  .scenario-badge { background:var(--orange); color:#fff; font-size:.62rem; font-weight:700; padding:3px 10px;
+                     border-radius:8px; letter-spacing:.04em; text-transform:uppercase; }
+
+  .scenario-columns { display:flex; gap:1.2rem; align-items:flex-start; }
+  .gantt-col { flex:0 1 44%; min-width:0; }
+  .metrics-col { flex:1 1 56%; min-width:0; display:flex; flex-direction:column; gap:.9rem; }
+  @media (max-width:900px){ .scenario-columns { flex-direction:column; } .gantt-col, .metrics-col { flex:1 1 auto; width:100%; } }
+
+  .gantt-wrap { overflow-x:auto; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:.6rem; }
+  .gantt-legend { display:flex; gap:1rem; flex-wrap:wrap; margin-top:.6rem; font-size:.72rem; color:var(--text-soft); }
+  .gantt-legend span { display:inline-flex; align-items:center; gap:.35rem; }
+  .gantt-legend .dot { width:11px; height:11px; border-radius:3px; display:inline-block; }
+  .gantt-tooltip { position:fixed; z-index:500; background:var(--dark-gray); color:#fff; font-size:.72rem;
+                    padding:.6rem .75rem; border-radius:8px; pointer-events:none; line-height:1.6; box-shadow:0 8px 24px rgba(0,0,0,.3);
+                    display:none; max-width:240px; }
+  .gantt-tooltip b { color:var(--orange); }
+
+  .kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; }
+  .kpi-item { background:var(--card); border:1px solid var(--border); border-radius:9px; padding:.55rem .7rem; }
+  .kpi-item.threshold.good { border-color:var(--good); background:var(--good-bg); }
+  .kpi-item.threshold.bad { border-color:var(--bad); background:var(--bad-bg); }
+  html[data-theme="dark"] .kpi-item.threshold.good { background:rgba(22,163,74,.12); }
+  html[data-theme="dark"] .kpi-item.threshold.bad { background:rgba(220,38,38,.12); }
+  .kpi-name { font-size:.6rem; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--text-soft); }
+  .kpi-val { font-size:.88rem; font-weight:700; margin-top:.15rem; }
+  .kpi-item.threshold.good .kpi-val { color:var(--good); }
+  .kpi-item.threshold.bad .kpi-val { color:var(--bad); }
+
+  .delta-box { font-size:.7rem; color:var(--text-soft); line-height:1.6; background:var(--card); border:1px solid var(--border);
+               border-radius:9px; padding:.6rem .7rem; margin-top:.8rem; }
+  .delta-box b { color:var(--text); }
+  .delta-pos { color:var(--bad); font-weight:700; }
+  .delta-neg { color:var(--good); font-weight:700; }
+
+  .notes-box { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:1rem 1.1rem;
+               font-size:.74rem; color:var(--text-soft); line-height:1.7; margin-top:1.4rem; }
+  .notes-box h4 { font-size:.72rem; text-transform:uppercase; letter-spacing:.05em; color:var(--text); margin-bottom:.5rem; }
+  .notes-box ul { padding-left:1.1rem; }
+
+  .conclusion-box { margin-top:1.4rem; background:rgba(255,100,65,.06); border:1.5px solid var(--orange); border-radius:12px;
+                    padding:1.2rem 1.4rem; font-size:.86rem; line-height:1.6; }
+  .conclusion-box h3 { font-size:.95rem; margin-bottom:.5rem; }
+  .conclusion-box h3 .ai { color:var(--orange); }
+
+  footer.qc-footer { background:var(--hero-darker); color:var(--neutral-gray); padding:.85rem 2rem;
+           display:flex; flex-wrap:wrap; gap:1rem; justify-content:space-between; font-size:.68rem; }
+  .footer-brand { color:#fff; font-weight:700; }
+  .footer-brand .ai { color:var(--orange); }
+
+  @media (max-width:900px){
+    .upload-grid, .form-grid, .vessel-summary { grid-template-columns:1fr; }
+    .kpi-grid { grid-template-columns:1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header class="qc-header">
+  <div class="qc-brand">
+    <a href="../../../index.html" class="qc-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 638.7 229.4">
+        <g fill="#FF6441">
+          <polygon points="157.7,102.2 157.7,93.9 220.1,65.3 220.1,76.3"/>
+          <polygon points="91.8,112.6 91.8,118.4 188.6,69.8 188.6,59.4"/>
+          <polygon points="68.7,139 122.1,116.9 122.1,110.2 68.7,134.6"/>
+        </g>
+        <path fill="#FFFFFF" d="M477.8,108.5L464.9,138h7.5l2.8-6.4h14.9l2.8,6.4h7.9L488,108.5H477.8z M477.7,125.9l5-11.4l5,11.4H477.7z
+          M381.9,138h5.7l7.9-16.6V138h7.1v-29.5h-8.4l-9.4,21.4l-9.4-21.4h-8.7V138h7.1v-16.6L381.9,138z M214.9,138h5.7l7.9-16.6V138h7.1
+          v-29.5h-8.4l-9.4,21.4l-9.4-21.4h-8.7V138h7.1v-16.6L214.9,138z M322.6,108.5v6.1h-20.5v6h17.1v5.9l-17.1,0v5.5h20.4v6.1h-28v-29.5
+          H322.6z M136.8,108.5L123.9,138h7.5l2.8-6.4h14.9l2.8,6.4h7.9L147,108.5H136.8z M136.7,125.9l5-11.4l5,11.4H136.7z M186.5,121.9
+          h-14.4v-7.6h14.4V121.9z M164.2,108.5l0,29.5h7.7v-10h17.3c2.2,0,4-1.3,4.2-4.2v-11c0-2.4-2.1-4.3-4.6-4.3H164.2z M513.5,108.5h-7.7
+          V138h26.5v-6.1h-18.8V108.5z M427.5,108.5V138h7.6v-20.3l16.3,20.3h8.4v-29.5h-7.7v20.3l-15.9-20.3H427.5z M411.3,138h7.4v-14.7
+          v-14.7h-7.4V138z M256.6,108.5v6.3h11.9V138h7.9v-23.2h11.9v-6.3H256.6z M542,108.5c-2.2-0.1-4.3,1.9-4.3,4v9.6
+          c0,2.5,2.1,4.3,4.2,4.3H559v5.7h-13.6v-2.4h-8v4.1c0,2.2,2,4.3,4.3,4.3h20.8c2.1,0,4.2-1.6,4.2-4.4v-9.2c-0.1-2.7-2.1-4.3-4.3-4.4
+          l-16.8,0v-5.5h13.2v1.9h7.5v-3.9c0.1-1.9-1.8-4.1-4.3-4H542z M329.6,108.5V138h7.5v-10.8h8.6l5.8,10.8h8l-6-10.8h0.7
+          c2.3-0.2,4-1.9,4-4.4v-10c0-2.4-2.1-4.3-4.6-4.3H329.6z M351.5,121.3h-14.5v-6.7h14.5V121.3z"/>
+      </svg>
+    </a>
+    <span class="qc-divider"></span>
+    <div class="qc-titles">
+      <span class="qc-tool-name">Quay <span class="ai">Commander</span></span>
+      <span class="qc-tool-sub">Vessel · Crane Split Optimizer</span>
+    </div>
+  </div>
+  <div class="qc-header-right">
+    <a class="qc-back" href="../../../index.html">← SMART Hub</a>
+    <button class="theme-toggle" id="themeToggle" title="Toggle day/night mode" aria-label="Toggle day/night mode">
+      <svg class="icon-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+      <svg class="icon-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" fill="currentColor"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="qc-main">
+
+  <div class="qc-hero">
+    <div class="qc-eyebrow">APM Terminals Mobile · Vessel Operations</div>
+    <h1 class="qc-h1">Find the <strong>optimal crane split</strong> for this vessel call</h1>
+    <p class="qc-lede">Upload the inbound BAPLIE and MOVINS files, describe the operation, and Quay Commander builds three crane-split scenarios with a bay-by-bay crane sequencing diagram, balancing port stay duration against labor cost and terminal revenue.</p>
+  </div>
+
+  <!-- STEP 1: FILE UPLOAD -->
+  <section class="qc-step">
+    <div class="qc-step-head">
+      <span class="qc-step-num">1</span>
+      <div>
+        <div class="qc-step-title">Upload vessel files</div>
+        <div class="qc-step-hint">Drag and drop a file onto a card, or click to browse. Everything is parsed entirely in your browser.</div>
+      </div>
+    </div>
+    <div class="upload-grid">
+      <label class="upload-card" id="cardBaplie">
+        <input type="file" id="fileBaplie" accept=".edi,.txt">
+        <div class="upload-icon"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+        <div class="upload-label">Inbound BAPLIE</div>
+        <div class="upload-req">Required</div>
+        <div class="upload-status" id="statusBaplie">No file selected.</div>
+        <div class="upload-drop-hint">Drop file here</div>
+      </label>
+      <label class="upload-card" id="cardMovins">
+        <input type="file" id="fileMovins" accept=".edi,.txt">
+        <div class="upload-icon"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+        <div class="upload-label">MOVINS (load list)</div>
+        <div class="upload-req">Required</div>
+        <div class="upload-status" id="statusMovins">No file selected.</div>
+        <div class="upload-drop-hint">Drop file here</div>
+      </label>
+      <label class="upload-card" id="cardRestow">
+        <input type="file" id="fileRestow" accept=".edi,.txt,.csv,.xlsx,.xls">
+        <div class="upload-icon"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+        <div class="upload-label">Restow list</div>
+        <div class="upload-opt">Optional — if applicable</div>
+        <div class="upload-status" id="statusRestow">No restows for this call.</div>
+        <div class="upload-drop-hint">Drop file here</div>
+      </label>
+    </div>
+    <div class="upload-hint-small">Restow list: the APMT "List Restow" export (.xlsx, with Container No / DepPos / ArvPos columns) is read in full — each container is sequenced as a discharge at its BAPLIE position followed by a load at its ArvPos (final) position, in their own bay queues. A plain container list (.edi/.txt/.csv, no positions) still works, billed the same way but scheduled as a generic move added after each crane's bay-group work.</div>
+    <div id="vesselWarning"></div>
+    <div class="vessel-summary" id="vesselSummary" style="display:none"></div>
+    <div class="btn-row" id="clearFilesRow" style="display:none">
+      <button class="btn btn-secondary" id="btnClearFiles">✕ Remove files &amp; start over</button>
+    </div>
+  </section>
+
+  <!-- STEP 2: OPERATION SETUP -->
+  <section class="qc-step">
+    <div class="qc-step-head">
+      <span class="qc-step-num">2</span>
+      <div>
+        <div class="qc-step-title">Operation setup</div>
+        <div class="qc-step-hint">Tell Quay Commander how and when this call will start.</div>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label for="startDate">Estimated operation date</label>
+        <input type="date" id="startDate">
+      </div>
+      <div class="field">
+        <label for="startHour">Estimated start (gang call time)</label>
+        <select id="startHour">
+          <option value="">Select a call time…</option>
+        </select>
+        <span class="field-hint">Only the standard gang call times from the Terminal's "Inicios de Operaciones" table are offered.</span>
+      </div>
+      <div class="field">
+        <label for="vesselSide">Vessel side alongside</label>
+        <select id="vesselSide">
+          <option value="Port">Port side alongside</option>
+          <option value="Starboard">Starboard side alongside</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="berth">Berth</label>
+        <select id="berth">
+          <option value="South">South</option>
+          <option value="North">North</option>
+        </select>
+        <span class="field-hint">Informational — any of the 6 cranes can travel to either berth; availability is governed by crane spacing and anti-collision rules, not by berth half.</span>
+      </div>
+      <div class="field">
+        <label for="craneOOS">Cranes out of service</label>
+        <select id="craneOOS"></select>
+      </div>
+      <div class="field" style="grid-column:span 2">
+        <label for="priorityKpi">Priority indicators for scenario selection</label>
+        <select id="priorityKpi">
+          <option value="mhpm_ugt">MHPM &amp; UGT (labor efficiency)</option>
+          <option value="phs_pmph">PHS % &amp; PMPH (schedule performance)</option>
+        </select>
+        <span class="field-hint">The recommended scenario is chosen primarily on this pair; the other KPIs are still shown but weigh less in the recommendation.</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnGenerate" disabled>Generate scenarios →</button>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section id="results">
+    <section class="qc-step">
+      <div class="qc-step-head">
+        <span class="qc-step-num">3</span>
+        <div>
+          <div class="qc-step-title">Executive summary — scenario comparison</div>
+          <div class="qc-step-hint" id="execSubtitle"></div>
+        </div>
+      </div>
+      <div class="exec-table-wrap">
+        <table class="exec-table" id="execTable"></table>
+      </div>
+    </section>
+
+    <section class="qc-step">
+      <div class="qc-step-head">
+        <span class="qc-step-num">4</span>
+        <div>
+          <div class="qc-step-title">Crane sequencing diagram</div>
+          <div class="qc-step-hint">Bay columns are fixed width (not proportional to moves or time). Hover a block for that crane's operating detail. Hatched bands mark meal breaks.</div>
+        </div>
+      </div>
+      <div id="scenarioGantts"></div>
+    </section>
+
+    <section class="qc-step">
+      <div class="qc-step-head">
+        <span class="qc-step-num">5</span>
+        <div>
+          <div class="qc-step-title">Conclusion &amp; report</div>
+        </div>
+      </div>
+      <div class="conclusion-box" id="conclusionBox"></div>
+      <div class="notes-box" id="notesBox"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="btnPdf">⬇ Download PDF report</button>
+      </div>
+    </section>
+  </section>
+
+</main>
+
+<div class="gantt-tooltip" id="ganttTooltip"></div>
+
+<footer class="qc-footer">
+  <span><span class="footer-brand">APM Terminals <span class="ai">Mobile</span></span> · Quay Commander</span>
+  <span>APM Terminals Mobile · Classification: Internal</span>
+</footer>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════════
+   DAY / NIGHT MODE
+   ══════════════════════════════════════════════════════════════════════════ */
+(function(){
+  let saved = null;
+  try { saved = localStorage.getItem('quaycommander-theme'); } catch(e){}
+  const preferred = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', preferred);
+})();
+document.getElementById('themeToggle').addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('quaycommander-theme', next); } catch(e){}
+  if (lastScenarios.length) renderScenarioGantts(lastScenarios);
+});
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EMBEDDED TERMINAL CRITERIA
+   Sources (APMT Mobile, Strategy team, learned 2026-09-17):
+   - "Criterio de costos para las operaciones de buque.xlsx" (labor shift costs,
+     KPI/PHS formulas, "APMT Cobra" tariff images)
+   - "Berths & Cranes.png" (fixed crane rail positions)
+   - "resumen_proyecto_quay_commander_mobile.md" (bay grouping, twin lift,
+     dual cycle, break windows)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const MIN_PER_MOVE = 1.85;          // regular container, minutes/move (= 60/32.5 CMPH)
+const MIN_PER_OOG = 3.70;           // OOG container, minutes/move (double)
+const RATE_DUAL = 42;               // dual-cycle combined moves/hour
+const IDLE_MIN = 65;                // arrival + departure idle standard, minutes
+const FIRST_MOVE_OFFSET_MIN = 20;   // first container move = start time + 20 min
+const LABOR_REQUIRED = [32, 56, 82, 106]; // total headcount for 1..4 cranes
+const BERTH_LENGTH_M = 732, BERTH_LENGTH_FT = 2400;
+const TWIN_WEIGHT_DIFF_KG = 5000;
+// Meal breaks — no operations run during these windows; a midnight-crossing
+// break (23:50-01:00) is represented as two same-day chunks.
+const BREAKS = [
+  { startMin: 0,        endMin: 60 },        // 00:00-01:00 (tail of the 23:50-01:00 break)
+  { startMin: 5*60+50,  endMin: 7*60 },       // 05:50-07:00
+  { startMin: 11*60+50, endMin: 13*60 },      // 11:50-13:00
+  { startMin: 17*60+50, endMin: 19*60 },      // 17:50-19:00
+  { startMin: 23*60+50, endMin: 24*60 },      // 23:50-24:00 (head of the 23:50-01:00 break)
+];
+
+const TARIFF = {
+  liftLoaded2040: 431.78, liftLoaded45: 464.16,
+  liftEmpty2040: 392.96, liftEmpty45: 422.43,
+  oogSurcharge: 162.40,           // Section 2.01(B)(1), overheight spreader
+  restowDry: 337.02,               // Section 2.03(D), 2 moves per restow container
+  standbyPerGangHour: 3621.06,     // Section 2.05(A)
+  craneSurcharge3: 0.15,           // 1 crane above the 2 included in the base rate
+  craneSurcharge4plus: 0.20,       // 2+ cranes above the 2 included in the base rate
+};
+
+// Crane fleet: all 6 cranes can travel to either berth. Numbering only sets the
+// south→north rail order used for contiguous bay assignment and coloring.
+const CRANES = [
+  { n:1, color:'#2E6DA4' },
+  { n:2, color:'#FF6441' },
+  { n:3, color:'#7B3FA0' },
+  { n:4, color:'#D9A916' },
+  { n:5, color:'#2FA84F' },
+  { n:6, color:'#C23FA0' },
+];
+function craneInfo(n){ return CRANES.find(c=>c.n===n); }
+
+// Canonical gang call times — "Inicios de Operaciones" sheet
+const CANONICAL_HOURS = [
+  { hour:7,  label:'07:00 AM' }, { hour:8,  label:'08:00 AM' }, { hour:10, label:'10:00 AM' },
+  { hour:13, label:'01:00 PM' }, { hour:15, label:'03:00 PM' }, { hour:19, label:'07:00 PM' },
+  { hour:0,  label:'12:00 AM (Midnight)' },
+];
+
+const SHIFT_WEEKDAY = [
+  { code:'S2',  start:7,  guarantee:4, cost:[5608.62, 9818.19, 14360.31, 18569.88] },
+  { code:'S3',  start:7,  guarantee:5, cost:[7565.08, 13129.36, 19210.94, 24775.22] },
+  { code:'S4',  start:8,  guarantee:4, cost:[5695.54, 9856.63, 14424.17, 18585.26] },
+  { code:'S5',  start:10, guarantee:4, cost:[6705.20, 11662.00, 17062.20, 22019.00] },
+  { code:'S6',  start:10, guarantee:6, cost:[7951.56, 13843.82, 20253.38, 26145.64] },
+  { code:'S7',  start:10, guarantee:7, cost:[9821.10, 17116.55, 25040.15, 32335.60] },
+  { code:'S8',  start:13, guarantee:4, cost:[4985.44, 8727.28, 12764.72, 16506.56] },
+  { code:'S9',  start:13, guarantee:5, cost:[7565.08, 13129.36, 19210.94, 24775.22] },
+  { code:'S10', start:15, guarantee:4, cost:[6705.20, 11662.00, 17062.20, 22019.00] },
+  { code:'S11', start:15, guarantee:7, cost:[12355.32, 21563.19, 31547.01, 40754.88] },
+  { code:'S12', start:15, guarantee:8, cost:[14183.36, 24752.92, 36209.28, 46778.84] },
+  { code:'S13', start:18, guarantee:6, cost:[11927.34, 20765.73, 30380.07, 39218.46] },
+  { code:'S14', start:19, guarantee:4, cost:[7478.16, 13090.92, 19147.08, 24759.84] },
+  { code:'S15', start:19, guarantee:5, cost:[9347.70, 16363.65, 23933.85, 30949.80] },
+  { code:'S16', start:0,  guarantee:8, cost:[19405.50, 33856.65, 49527.15, 63978.30] },
+  { code:'S17', start:1,  guarantee:4, cost:[7478.16, 13090.92, 19147.08, 24759.84] },
+  { code:'S18', start:1,  guarantee:5, cost:[9347.70, 16363.65, 23933.85, 30949.80] },
+];
+const SHIFT_WEEKEND = [
+  { code:'WS2',  start:7,  guarantee:4, cost:[6877.20, 11990.52, 17542.44, 22655.76] },
+  { code:'WS3',  start:7,  guarantee:5, cost:[9269.295, 16056.57, 23501.745, 30289.02] },
+  { code:'WS4',  start:8,  guarantee:4, cost:[7549.995, 13058.94, 19116.135, 24625.08] },
+  { code:'WS5',  start:10, guarantee:4, cost:[7549.995, 13058.94, 19116.135, 24625.08] },
+  { code:'WS6',  start:10, guarantee:6, cost:[10988.595, 19054.20, 27887.355, 35952.96] },
+  { code:'WS7',  start:10, guarantee:7, cost:[12707.895, 22051.83, 32272.965, 41616.90] },
+  { code:'WS8',  start:13, guarantee:4, cost:[6877.20, 11990.52, 17542.44, 22655.76] },
+  { code:'WS9',  start:13, guarantee:5, cost:[9269.295, 16056.57, 23501.745, 30289.02] },
+  { code:'WS10', start:15, guarantee:4, cost:[7549.995, 13058.94, 19116.135, 24625.08] },
+  { code:'WS11', start:15, guarantee:7, cost:[12707.895, 22051.83, 32272.965, 41616.90] },
+  { code:'WS12', start:15, guarantee:8, cost:[14427.195, 25049.46, 36658.575, 47280.84] },
+];
+const ALL_WEEKDAY_HOURS = [0,1,7,8,10,13,15,18,19];
+
+// UGT guarantee windows — "Horas de los Turno UGT" table. Guarantee hours were
+// identical between the weekday and weekend/holiday rows the user supplied, so
+// one table covers both. Each row is a standard gang-call window (explicit
+// start/end clock hour, "end:0" meaning midnight). A crane's guarantee window
+// is NOT simply "call hour + these hours": once one window's end passes, the
+// gang rolls into the next standard window — whichever of these 8 has the
+// smallest start hour at or after the previous window's end (wrapping past
+// midnight) — and so on, until reaching the window that contains the crane's
+// own last move. UGT = that window's end clock time minus the crane's finish.
+// Reverse-engineered from two worked examples the user gave from a real
+// scenario (call 07:00 Fri): a crane finishing 22:22 Fri lands in 18:00-00:00
+// (chain: 07-11 -> 13-17 -> 18-00), UGT 1h38m; a crane finishing 03:53 Sat
+// lands in 01:00-05:00 (chain continues -> 01-05), UGT 1h07m. Both verified.
+const UGT_ROWS = [
+  { start:7,  end:11 }, { start:8,  end:12 }, { start:10, end:17 }, { start:13, end:17 },
+  { start:15, end:23 }, { start:18, end:0  }, { start:19, end:23 }, { start:1,  end:5  },
+];
+function ugtWindowEnd(callDate, callHour, finishDate){
+  let initialRow = UGT_ROWS.find(r => r.start === callHour);
+  if (!initialRow) {
+    let bestD = Infinity;
+    UGT_ROWS.forEach(r => { const d = circDist(callHour, r.start); if (d < bestD) { bestD = d; initialRow = r; } });
+  }
+  let curStart = new Date(callDate.getTime());
+  curStart.setHours(initialRow.start, 0, 0, 0);
+  let curEnd = new Date(curStart.getTime());
+  if (initialRow.end <= initialRow.start) curEnd.setDate(curEnd.getDate() + 1);
+  curEnd.setHours(initialRow.end, 0, 0, 0);
+
+  let guard = 0;
+  while (finishDate.getTime() >= curEnd.getTime() && guard < 60) {
+    guard++;
+    const endHourOfDay = curEnd.getHours();
+    const sameDayCandidates = UGT_ROWS.filter(r => r.start >= endHourOfDay);
+    const nextRow = sameDayCandidates.length
+      ? sameDayCandidates.reduce((a,b) => a.start <= b.start ? a : b)
+      : UGT_ROWS.reduce((a,b) => a.start <= b.start ? a : b);
+    const nextStart = new Date(curEnd.getTime());
+    if (!sameDayCandidates.length) nextStart.setDate(nextStart.getDate() + 1);
+    nextStart.setHours(nextRow.start, 0, 0, 0);
+    curStart = nextStart;
+    curEnd = new Date(curStart.getTime());
+    if (nextRow.end <= nextRow.start) curEnd.setDate(curEnd.getDate() + 1);
+    curEnd.setHours(nextRow.end, 0, 0, 0);
+  }
+  return curEnd;
+}
+
+const PHS_BRACKETS = [
+  { max:500,      pmph:31.5190571666667, label:'0–500' },
+  { max:1000,     pmph:54.037377862069,  label:'501–1,000' },
+  { max:1500,     pmph:64.8388915068493, label:'1,001–1,500' },
+  { max:2000,     pmph:66.6402672413793, label:'1,501–2,000' },
+  { max:2500,     pmph:64.80274,         label:'2,001–2,500' },
+  { max:Infinity, pmph:77.5493,          label:'2,501+' },
+];
+
+const CARRIERS = [
+  { code:'MAE', name:'Maersk' }, { code:'CMA', name:'CMA CGM' }, { code:'ZIM', name:'ZIM' },
+  { code:'COS', name:'COSCO SHIPPING Lines' }, { code:'OCL', name:'OOCL' }, { code:'ONE', name:'ONE' },
+  { code:'EGL', name:'Evergreen' }, { code:'MSC', name:'MSC' }, { code:'HLC', name:'Hapag-Lloyd' },
+];
+function carrierName(code){ const c = CARRIERS.find(x=>x.code===code); return c ? c.name : (code || 'Unknown'); }
+
+const THRESH = {
+  totalUGT: { max:1.35 }, mhpm: { max:0.92 }, phsPct: { max:-0.05 }, phsHours: { max:0 },
+};
+function meetsGreen(key, val){ return val <= THRESH[key].max; }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   EDI PARSING (container-level records)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function circDist(a,b){ const d = Math.abs(a-b); return Math.min(d, 24-d); }
+
+// SSL identification: structural fields only (UNB's sender field, and TDT's
+// carrier-code field before a ":172:NN" qualifier), matched against known
+// carrier tokens — never a loose "last field" or substring guess, since UNB's
+// last field is often just an interchange reference number (e.g. "43197"),
+// not a carrier code, and its layout differs by SSL/EDI generator.
+const SSL_TOKENS = {
+  MAEU:'MAE', MAERSK:'MAE', MAE:'MAE', MSK:'MAE',
+  CMAU:'CMA', CMA:'CMA',
+  MSCU:'MSC', MSC:'MSC',
+  ZIMU:'ZIM', ZIM:'ZIM',
+  COSU:'COS', COS:'COS', COSCO:'COS',
+  OCLU:'OCL', OCL:'OCL', OOCL:'OCL',
+  ONEY:'ONE', ONEU:'ONE', ONE:'ONE',
+  EVG:'EGL', EMC:'EGL', EGL:'EGL', EVERGREEN:'EGL',
+  HLC:'HLC', HAPAGLLOYD:'HLC',
+};
+function extractSSL(text){
+  const candidates = [];
+  let unbSenderRaw = null;
+  const unbMatch = text.match(/UNB\+[^']*'/);
+  if (unbMatch) {
+    const rawFields = unbMatch[0].replace(/'$/, '').split('+'); // keep empty fields for correct positions
+    unbSenderRaw = rawFields[2] || null; // UNB's structural sender-ID field
+    rawFields.filter(Boolean).forEach(f => {
+      f.split(/[:\s]+/).filter(Boolean).forEach(tok => {
+        const ssl = SSL_TOKENS[tok.toUpperCase()];
+        if (ssl) candidates.push(ssl);
+      });
+    });
+  }
+  const tdtMatch = text.match(/TDT\+[^']*'/);
+  if (tdtMatch) {
+    const m = tdtMatch[0].match(/\+([A-Z]{2,8}):172:\d+/);
+    if (m) { const ssl = SSL_TOKENS[m[1].toUpperCase()]; if (ssl) candidates.push(ssl); }
+  }
+  if (candidates.length) return candidates[0];
+  // Unrecognized carrier: surface the raw UNB sender code rather than showing
+  // nothing, so it's visible in the UI and can be added to SSL_TOKENS later.
+  return unbSenderRaw ? unbSenderRaw.toUpperCase() : null;
+}
+function extractVesselVoyage(text){
+  // The vessel-name qualifier before it (":ZZZ:", ":11:", etc.) differs by SSL/EDI
+  // generator, so read the TDT+20 segment's last field and take its last
+  // colon-separated sub-value — the free-text vessel name is always there.
+  const m = text.match(/TDT\+20\+([^']*)'/);
+  if (!m) return { voyage:null, vesselName:null };
+  const fields = m[1].split('+');
+  const voyage = (fields[0] || '').trim() || null;
+  const lastField = fields[fields.length - 1] || '';
+  const parts = lastField.split(':');
+  const vesselName = parts[parts.length - 1].trim() || null;
+  return { voyage, vesselName };
+}
+function pad3(n){ return String(n).padStart(3,'0'); }
+
+// Splits into LOC+147 container chunks, tracking the most recent HAN+LOA /
+// HAN+DIS marker (a MOVINS file can contain both: a discharge-instruction
+// section — usually duplicating what the BAPLIE already reports — followed by
+// the real load section). BAPLIE files carry no HAN segments, so `han` stays
+// null there and every chunk is kept.
+function splitContainerChunks(text){
+  const idx0 = text.search(/LOC\+147\+|HAN\+(?:LOA|DIS)/);
+  if (idx0 === -1) return [];
+  const body = text.slice(idx0);
+  const parts = body.split(/(?=LOC\+147\+|HAN\+(?:LOA|DIS))/g).filter(Boolean);
+  let han = null;
+  const chunks = [];
+  parts.forEach(p => {
+    const hanMatch = p.match(/^HAN\+(LOA|DIS)/);
+    if (hanMatch) { han = hanMatch[1]; return; }
+    if (p.startsWith('LOC+147+')) chunks.push({ text:p, han });
+  });
+  return chunks;
+}
+
+function parseContainerRecords(text, filterPOD){
+  const chunks = splitContainerChunks(text);
+  const records = [];
+  chunks.forEach(({ text:chunk, han }) => {
+    const posMatch = chunk.match(/^LOC\+147\+(\d{7})/);
+    if (!posMatch) return;
+    const pos = posMatch[1];
+    const bay = Number(pos.slice(0,3));
+    const row = Number(pos.slice(3,5));
+    const tier = Number(pos.slice(5,7));
+    const idMatch = chunk.match(/EQD\+CN\+([A-Z0-9]*)\+([A-Z0-9]{4})/);
+    const containerId = idMatch ? idMatch[1] : '';
+    const isoCode = idMatch ? idMatch[2] : '';
+    const sizeChar = isoCode ? isoCode[0] : '4';
+    const isEmpty = !containerId;
+    const weightMatch = chunk.match(/MEA\+(?:VGM|WT)\+\+KGM:([\d.]+)/);
+    const weight = weightMatch ? parseFloat(weightMatch[1]) : 0;
+    const oog = /DIM\+/.test(chunk);
+    let pod = null;
+    if (filterPOD) {
+      const podMatch = chunk.match(/LOC\+11\+([A-Z]{5})/);
+      pod = podMatch ? podMatch[1] : null;
+    }
+    records.push({ bay, row, tier, containerId, sizeChar, isEmpty, weight, oog, pod, han });
+  });
+  return records;
+}
+
+function rateSizeTier(sizeChar){ return sizeChar === 'L' ? '45' : '2040'; }
+
+function parseBaplie(text){
+  const { voyage, vesselName } = extractVesselVoyage(text);
+  const ssl = extractSSL(text);
+  const nextPort = text.match(/LOC\+61\+([A-Z0-9]{5})/);
+  const terminalCode = nextPort ? nextPort[1] : null;
+  const all = parseContainerRecords(text, true);
+  const discharge = terminalCode ? all.filter(r => r.pod === terminalCode) : [];
+  discharge.forEach(r => { r.isEmpty = false; }); // BAPLIE feed carries no reliable full/empty flag — assumed laden
+  // Every on-board container's current position, keyed by container ID — used
+  // to resolve a restow's "initial position" (see buildRestowRecords), per the
+  // rule that the inbound BAPLIE is the source of truth for where a container
+  // actually sits today, not whatever a restow list's own "DepPos" claims.
+  const byContainerId = {};
+  all.forEach(r => { if (r.containerId) byContainerId[r.containerId] = { bay:r.bay, row:r.row, tier:r.tier }; });
+  return { voyage, vesselName, ssl, terminalCode, totalOnBoard: all.length, discharge, byContainerId };
+}
+function parseMovins(text){
+  const { voyage, vesselName } = extractVesselVoyage(text);
+  const ssl = extractSSL(text);
+  const thisPort = text.match(/LOC\+5\+([A-Z0-9]{5})/);
+  const terminalCode = thisPort ? thisPort[1] : null;
+  const all = parseContainerRecords(text, false);
+  // Some MOVINS feeds carry a HAN+DIS section ahead of the real HAN+LOA load
+  // section — those entries duplicate discharge moves the BAPLIE already
+  // reports, so only HAN+LOA (or unmarked, for feeds with no HAN at all) counts.
+  const load = all.filter(r => r.han !== 'DIS');
+  const dischargeMarkedCount = all.length - load.length;
+  return { voyage, vesselName, ssl, terminalCode, load, dischargeMarkedCount };
+}
+// Restow position code: 6 digits, bay(2) + row(2) + tier(2) — distinct from
+// the BAPLIE/MOVINS LOC+147 7-digit bay(3)+row(2)+tier(2) code.
+function parseRestowPosCode(code){
+  const digits = String(code||'').replace(/\D/g,'');
+  if (digits.length < 6) return null;
+  const s = digits.padStart(6,'0').slice(-6);
+  return { bay:Number(s.slice(0,2)), row:Number(s.slice(2,4)), tier:Number(s.slice(4,6)) };
+}
+function parseRestowText(text){
+  const eqdMatches = text.match(/EQD\+CN\+[A-Z0-9]+/g);
+  if (eqdMatches && eqdMatches.length) return eqdMatches.length;
+  const chunks = splitContainerChunks(text);
+  if (chunks.length) return chunks.length;
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const containerLike = lines.filter(l => /^[A-Z]{4}\d{6,7}/.test(l));
+  return containerLike.length || Math.max(0, lines.length - 1);
+}
+// Structured restow list (the real APMT "List Restow" export): a title row,
+// a "TOTAL : n" row, a blank row, then a header row with "Container No",
+// "DepPos", "ArvPos", "SzTp", "Weight", etc. Per the restow criteria: the
+// container's INITIAL position comes from cross-referencing the BAPLIE (not
+// this file's own DepPos column), and the FINAL position is this file's ArvPos.
+function parseRestowRows(rows){
+  if (!rows.length) return { containers: [] };
+  let headerIdx = rows.findIndex(r => r.some(c => /container\s*no/i.test(String(c||''))));
+  if (headerIdx === -1) headerIdx = 0;
+  const header = rows[headerIdx].map(c => String(c||'').trim().toLowerCase());
+  const idxContainer = header.findIndex(h => h.includes('container'));
+  const idxArv = header.findIndex(h => h.includes('arv') || h.includes('arrival'));
+  const idxDep = header.findIndex(h => h.includes('dep') || h.includes('departure'));
+  const idxSzTp = header.findIndex(h => h.includes('sztp') || h.includes('size'));
+  const idxWeight = header.findIndex(h => h.includes('weight'));
+  const dataRows = rows.slice(headerIdx+1).filter(r => r.some(c => String(c||'').trim().length));
+  if (idxContainer === -1) {
+    // No recognizable header (a plain container list) — fall back to a bare count, no position data.
+    return { containers: dataRows.map(r => ({ containerId: String(r[0]||'').trim().toUpperCase(), finalPos:null })).filter(x=>x.containerId) };
+  }
+  const containers = dataRows.map(r => {
+    const containerId = String(r[idxContainer]||'').trim().toUpperCase();
+    const finalPos = idxArv >= 0 ? parseRestowPosCode(r[idxArv]) : null;
+    const depPos = idxDep >= 0 ? parseRestowPosCode(r[idxDep]) : null;
+    const szTp = idxSzTp >= 0 ? String(r[idxSzTp]||'').trim() : '';
+    const sizeChar = szTp && /^2/.test(szTp) ? '2' : (szTp && /^L/i.test(szTp) ? 'L' : '4');
+    const weight = idxWeight >= 0 ? parseFloat(r[idxWeight]) || 0 : 0;
+    return { containerId, finalPos, depPos, sizeChar, weight };
+  }).filter(x => x.containerId);
+  return { containers };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BAY GROUPING (odd-even-odd crane work-position fusion)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function buildBayGroups(dischargeRecords, loadRecords){
+  const baySet = new Set();
+  dischargeRecords.forEach(r=>baySet.add(r.bay));
+  loadRecords.forEach(r=>baySet.add(r.bay));
+  const bays = Array.from(baySet).sort((a,b)=>a-b);
+  const used = new Set();
+  const groups = [];
+  bays.forEach(b => {
+    if (used.has(b) || b % 2 === 0) return;
+    const mid = b+1, hi = b+2;
+    if (baySet.has(mid) && baySet.has(hi) && !used.has(mid) && !used.has(hi)) {
+      groups.push({ label: pad3(b)+'-'+pad3(hi), bays:[b,mid,hi] });
+      used.add(b); used.add(mid); used.add(hi);
+    }
+  });
+  bays.forEach(b => {
+    if (used.has(b)) return;
+    groups.push({ label: pad3(b), bays:[b] });
+    used.add(b);
+  });
+  groups.sort((x,y) => x.bays[0]-y.bays[0]);
+  groups.forEach(g => {
+    g.discharge = dischargeRecords.filter(r => g.bays.includes(r.bay));
+    g.load = loadRecords.filter(r => g.bays.includes(r.bay));
+    g.moves = g.discharge.length + g.load.length;
+  });
+  return groups.filter(g => g.moves > 0);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   TWIN LIFT DETECTION
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function detectTwinLifts(records, oddBays){
+  if (oddBays.length < 2) return 0;
+  const candidateIdx = [];
+  records.forEach((r,i) => { if (r.sizeChar === '2' && oddBays.includes(r.bay)) candidateIdx.push(i); });
+  const byKey = {};
+  candidateIdx.forEach(i => {
+    const r = records[i];
+    const key = r.row+'-'+r.tier;
+    (byKey[key] = byKey[key] || []).push(i);
+  });
+  const used = new Set();
+  let pairs = 0;
+  Object.values(byKey).forEach(idxs => {
+    for (let i=0;i<idxs.length;i++){
+      if (used.has(idxs[i])) continue;
+      for (let j=i+1;j<idxs.length;j++){
+        if (used.has(idxs[j])) continue;
+        const a = records[idxs[i]], b = records[idxs[j]];
+        if (a.bay === b.bay) continue;
+        if (Math.abs(a.weight - b.weight) <= TWIN_WEIGHT_DIFF_KG) {
+          used.add(idxs[i]); used.add(idxs[j]); pairs++;
+          break;
+        }
+      }
+    }
+  });
+  return pairs;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   BAY-GROUP TIME SIMULATION (OOG doubling, dual-cycle start rule, twin lift)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function simulateBayGroup(g){
+  const holdDischarge = g.discharge.filter(r=>r.tier<80);
+  const deckDischarge = g.discharge.filter(r=>r.tier>=80);
+  const holdLoad = g.load.filter(r=>r.tier<80);
+  const deckLoad = g.load.filter(r=>r.tier>=80);
+  const oddBays = g.bays.filter(b=>b%2===1);
+  const twinLifts = detectTwinLifts(g.discharge, oddBays) + detectTwinLifts(g.load, oddBays);
+
+  function timeFor(records){
+    const oog = records.filter(r=>r.oog).length;
+    const reg = records.length - oog;
+    return { minutes: reg*MIN_PER_MOVE + oog*MIN_PER_OOG, oog };
+  }
+
+  let minutes = 0, oogCount = 0, dualCycleMoves = 0;
+  const deckD = timeFor(deckDischarge); minutes += deckD.minutes; oogCount += deckD.oog;
+  const deckL = timeFor(deckLoad); minutes += deckL.minutes; oogCount += deckL.oog;
+
+  const holdOOG = holdDischarge.filter(r=>r.oog);
+  const holdRegDischarge = holdDischarge.filter(r=>!r.oog);
+  const holdRegLoad = holdLoad.filter(r=>!r.oog);
+  const holdOOGLoad = holdLoad.filter(r=>r.oog);
+  minutes += holdOOG.length * MIN_PER_OOG + holdOOGLoad.length * MIN_PER_OOG;
+  oogCount += holdOOG.length + holdOOGLoad.length;
+
+  const rows = Array.from(new Set(holdRegDischarge.map(r=>r.row))).sort((a,b)=>a-b);
+  let dualEligible = holdRegDischarge.length;
+  let singleDischarge = 0;
+  if (rows.length > 0) {
+    const row1Count = holdRegDischarge.filter(r=>r.row===rows[0]).length;
+    singleDischarge += row1Count; dualEligible -= row1Count;
+    if (rows.length > 1) {
+      const row2Records = holdRegDischarge.filter(r=>r.row===rows[1]);
+      const row2At75 = Math.floor(row2Records.length * 0.75);
+      singleDischarge += row2At75; dualEligible -= row2At75;
+    }
+  }
+  minutes += singleDischarge * MIN_PER_MOVE;
+
+  const dualPairUnits = Math.min(dualEligible, holdRegLoad.length);
+  dualCycleMoves = dualPairUnits * 2;
+  minutes += dualCycleMoves / RATE_DUAL * 60;
+  const leftoverDischarge = dualEligible - dualPairUnits;
+  const leftoverLoad = holdRegLoad.length - dualPairUnits;
+  minutes += (leftoverDischarge + leftoverLoad) * MIN_PER_MOVE;
+
+  minutes -= twinLifts * MIN_PER_MOVE;
+  minutes = Math.max(minutes, 0);
+
+  const restowMoves = g.discharge.filter(r=>r.isRestow).length + g.load.filter(r=>r.isRestow).length;
+  return {
+    minutes,
+    totalMoves: g.discharge.length + g.load.length,
+    dischargeMoves: g.discharge.length,
+    loadMoves: g.load.length,
+    oogCount, twinLifts, dualCycleMoves, restowMoves,
+  };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CRANE AVAILABILITY + CONTIGUOUS ASSIGNMENT
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function availableCraneOrder(outOfService){
+  return [1,2,3,4,5,6].filter(n => !outOfService.includes(n));
+}
+
+// Physical bay-position spacing (for the crane anti-collision rule, see
+// enforceCraneSpacing below). Standard SMDG bay numbering: even bay numbers
+// are 40' slots, flanked by odd 20' sub-positions n-1/n+1 on either side;
+// consecutive 40'-equivalent bay positions increment by 4 (e.g. 006, 010,
+// 014, 018...) — confirmed against this tool's own real BAPLIE bay-group
+// sequences, where the only larger jumps line up with genuine hull gaps
+// (bulkheads/engine casing), not with populated bay positions. So one
+// physical bay step = 4 on the bay-number scale, regardless of whether the
+// numbers in between actually appear as a bay group (they may simply have
+// no cargo on this call).
+function groupCenterBay(g){
+  return g.bays.length === 3 ? g.bays[1] : g.bays[0];
+}
+function physicalBaySteps(g1, g2){
+  return Math.abs(groupCenterBay(g2) - groupCenterBay(g1)) / 4;
+}
+
+// Crane anti-collision minimum spacing (from the terminal's operating
+// criteria): 1 bay of 40' between cranes 1 and 2 (narrower 27m gantries),
+// 2 bays of 40' between any other adjacent pair (wider 33m gantries on
+// cranes 3-6). Applied between whichever two crane NUMBERS end up adjacent
+// in a scenario (e.g. cranes 1 and 3 if crane 2 is out of service) — the
+// 1-bay exception is kept specific to the literal {1,2} pair since it's a
+// property of those two cranes' hardware, not of "first two in the lineup".
+function requiredCraneSpacing(craneA, craneB){
+  const pair = [craneA, craneB].sort((a,b)=>a-b);
+  return (pair[0] === 1 && pair[1] === 2) ? 1 : 2;
+}
+
+// Enforces the spacing rule on an already-partitioned, already-balanced set
+// of buckets: for each boundary between adjacent cranes, if the physical
+// bay-step gap between crane[b]'s northernmost assigned group and
+// crane[b+1]'s southernmost assigned group is below the required minimum,
+// whole bay-groups are handed from the front of bucket[b+1] to the end of
+// bucket[b] — re-checking the (now different) boundary pair each time —
+// until the gap clears the minimum or bucket[b+1] would go empty. This is a
+// hard safety constraint, so it runs after and can override balance: a
+// scenario that can't fit N cranes at the required spacing on this vessel's
+// bay layout will fall back to the closest achievable gap (flagged to the
+// caller via the returned `warnings`), never a silent unsafe assignment.
+function enforceCraneSpacing(buckets, craneNumbers){
+  const warnings = [];
+  for (let b = 0; b < buckets.length - 1; b++) {
+    if (!buckets[b].length || !buckets[b+1].length) continue;
+    const required = requiredCraneSpacing(craneNumbers[b], craneNumbers[b+1]);
+    const gapNow = () => physicalBaySteps(
+      buckets[b][buckets[b].length-1].group,
+      buckets[b+1][0].group
+    );
+    let guard = 0;
+    while (gapNow() < required && buckets[b+1].length > 1 && guard < 200) {
+      buckets[b].push(buckets[b+1].shift());
+      guard++;
+    }
+    if (gapNow() < required) {
+      warnings.push({ craneA: craneNumbers[b], craneB: craneNumbers[b+1], required, achieved: gapNow() });
+    }
+  }
+  return warnings;
+}
+
+function partitionByWeight(items, N, weightFn){
+  if (N >= items.length) {
+    const buckets = items.map(it => [it]);
+    while (buckets.length < N) buckets.push([]);
+    return buckets;
+  }
+  const total = items.reduce((s,it)=>s+weightFn(it), 0);
+  const target = total / N;
+  const buckets = [];
+  let current = [];
+  let currentW = 0;
+  for (let i=0;i<items.length;i++){
+    current.push(items[i]); currentW += weightFn(items[i]);
+    const remainingBuckets = N - buckets.length;
+    const itemsLeftAfterThis = items.length - i - 1;
+    const mustCloseNow = remainingBuckets > 1 && itemsLeftAfterThis === remainingBuckets - 1;
+    const canCloseNow = remainingBuckets > 1 && itemsLeftAfterThis > remainingBuckets - 1 && currentW >= target;
+    if (mustCloseNow || canCloseNow) {
+      buckets.push(current); current = []; currentW = 0;
+    }
+  }
+  buckets.push(current);
+  while (buckets.length < N) buckets.push([]);
+  while (buckets.length > N) { const last = buckets.pop(); buckets[buckets.length-1] = buckets[buckets.length-1].concat(last); }
+
+  // Balance refinement: a whole-group contiguous split can leave one crane
+  // well over/under its fair share when a group (or several) is large
+  // relative to the target. For each boundary, hand whole groups across for
+  // as long as that keeps reducing the imbalance (cheap — no simulation
+  // re-run needed since sim.minutes is already known per group). Several
+  // passes, since fixing one boundary changes its neighbor's total and can
+  // leave the next boundary stale — repeat until nothing moves.
+  //
+  // Deliberately whole-group only, never a fractional split of one bay
+  // between two cranes: two adjacent cranes sharing the identical bay would
+  // put them at zero physical distance, which can never satisfy the crane
+  // anti-collision spacing rule (see enforceCraneSpacing) even if they work
+  // it at different times — the rail positions themselves would still be
+  // that close.
+  for (let pass = 0; pass < 8; pass++) {
+    let movedAny = false;
+    for (let b = 0; b < buckets.length - 1; b++) {
+      if (!buckets[b].length || !buckets[b+1].length) continue;
+      let leftSum = buckets[b].reduce((s,it)=>s+weightFn(it),0);
+      let rightSum = buckets[b+1].reduce((s,it)=>s+weightFn(it),0);
+      while (buckets[b].length > 1) {
+        const item = buckets[b][buckets[b].length-1];
+        const w = weightFn(item);
+        const newLeft = leftSum - w, newRight = rightSum + w;
+        if (Math.abs(newLeft - newRight) >= Math.abs(leftSum - rightSum)) break;
+        buckets[b].pop(); buckets[b+1].unshift(item);
+        leftSum = newLeft; rightSum = newRight; movedAny = true;
+      }
+    }
+    if (!movedAny) break;
+  }
+  return buckets;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   CLOCK ADVANCE (meal breaks)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function advanceClock(startDate, durationMinutes){
+  let current = new Date(startDate.getTime());
+  let remaining = durationMinutes;
+  let breaksHit = 0;
+  let guard = 0;
+  const segments = []; // continuous working sub-intervals, excluding meal-break pauses
+  let segStart = new Date(current.getTime());
+  while (remaining > 0.0001 && guard < 10000) {
+    guard++;
+    const dayMin = current.getHours()*60 + current.getMinutes() + current.getSeconds()/60;
+    const nextBreak = BREAKS.find(b => b.startMin >= dayMin - 0.01);
+    const minutesToBreak = nextBreak ? (nextBreak.startMin - dayMin) : Infinity;
+    if (minutesToBreak !== Infinity && minutesToBreak <= remaining) {
+      current = new Date(current.getTime() + minutesToBreak*60000);
+      segments.push({ start: segStart, end: new Date(current.getTime()) });
+      remaining -= minutesToBreak;
+      const breakLen = nextBreak.endMin - nextBreak.startMin;
+      current = new Date(current.getTime() + breakLen*60000);
+      segStart = new Date(current.getTime());
+      breaksHit++;
+    } else {
+      current = new Date(current.getTime() + remaining*60000);
+      remaining = 0;
+    }
+  }
+  segments.push({ start: segStart, end: new Date(current.getTime()) });
+  return { endDate: current, breaksHit, segments: segments.filter(s => s.end.getTime() > s.start.getTime()) };
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PER-CRANE SIMULATION
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function simulateCrane(craneNumber, assignedGroups, startDate){
+  let current = new Date(startDate.getTime());
+  let totalWorkedMinutes = 0, totalMoves = 0, oogCount = 0, twinLifts = 0, dualCycleMoves = 0, breaksHit = 0;
+  const blocks = [];
+  assignedGroups.forEach(item => {
+    const g = item.group, sim = item.sim;
+    if (sim.totalMoves === 0) return;
+    const start = new Date(current.getTime());
+    const adv = advanceClock(current, sim.minutes);
+    current = adv.endDate;
+    breaksHit += adv.breaksHit;
+    totalWorkedMinutes += sim.minutes;
+    totalMoves += sim.totalMoves; oogCount += sim.oogCount; twinLifts += sim.twinLifts; dualCycleMoves += sim.dualCycleMoves;
+    blocks.push({ label:g.label, start, end:current, segments:adv.segments, sim });
+  });
+  return { craneNumber, blocks, finish:current, totalWorkedMinutes, totalMoves, oogCount, twinLifts, dualCycleMoves, breaksHit };
+}
+
+// Turns matched restow containers into real discharge/load records: the
+// discharge goes into the INITIAL position's bay-group (looked up from the
+// BAPLIE — the source of truth for where the container actually sits, per the
+// restow criteria — not the restow list's own "DepPos" field), and the load
+// goes into the FINAL position's bay-group (the restow list's "ArvPos").
+// Within a bay-group's own queue this naturally sequences discharge before
+// load; a restow whose final bay differs from its initial bay isn't given a
+// hard cross-bay/cross-crane ordering constraint (documented as a simplification).
+function buildRestowRecords(baplie, restowState){
+  const dischargeExtra = [], loadExtra = [], unmatchedCount = { value:0 };
+  const containers = (restowState && restowState.containers) || [];
+  const byId = (baplie && baplie.byContainerId) || {};
+  containers.forEach(rc => {
+    const initial = rc.containerId ? byId[rc.containerId] : null;
+    if (!initial || !rc.finalPos) { unmatchedCount.value++; return; }
+    const sizeChar = rc.sizeChar || '4';
+    const weight = rc.weight || 0;
+    dischargeExtra.push({ bay:initial.bay, row:initial.row, tier:initial.tier, containerId:rc.containerId, sizeChar, isEmpty:false, weight, oog:false, pod:null, isRestow:true });
+    loadExtra.push({ bay:rc.finalPos.bay, row:rc.finalPos.row, tier:rc.finalPos.tier, containerId:rc.containerId, sizeChar, isEmpty:false, weight, oog:false, han:'LOA', isRestow:true });
+  });
+  return { dischargeExtra, loadExtra, unmatchedContainers: unmatchedCount.value };
+}
+
+function addRestowBlock(craneSims, restowMoves){
+  if (!restowMoves) return;
+  const perCrane = restowMoves / craneSims.length;
+  const minutesPerCrane = perCrane * MIN_PER_MOVE;
+  craneSims.forEach(cs => {
+    const start = new Date(cs.finish.getTime());
+    const adv = advanceClock(start, minutesPerCrane);
+    cs.finish = adv.endDate;
+    cs.breaksHit += adv.breaksHit;
+    cs.totalWorkedMinutes += minutesPerCrane;
+    cs.totalMoves += perCrane;
+    cs.blocks.push({ label:'Restow', start, end:cs.finish, segments:adv.segments, sim:{ totalMoves:perCrane, dischargeMoves:perCrane/2, loadMoves:perCrane/2, oogCount:0, twinLifts:0, dualCycleMoves:0 } });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SHIFT / COST ENGINE (unchanged methodology from the embedded cost workbook)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function nearestShiftFamily(startHour, isWeekend){
+  const primaryTable = isWeekend ? SHIFT_WEEKEND : SHIFT_WEEKDAY;
+  const primaryHours = Array.from(new Set(primaryTable.map(s=>s.start)));
+  if (!isWeekend || primaryHours.includes(startHour)) {
+    return { candidates: primaryTable.filter(s=>s.start===startHour), usedWeekdayFallback:false };
+  }
+  return { candidates: SHIFT_WEEKDAY.filter(s=>s.start===startHour), usedWeekdayFallback:true };
+}
+function selectShiftCost(candidates, requiredHours, craneIdx){
+  let best = null;
+  candidates.forEach(s => {
+    const c = s.cost[craneIdx];
+    const rate = c / s.guarantee;
+    let cost, ugtIfChosen;
+    if (s.guarantee >= requiredHours) { cost = c; ugtIfChosen = s.guarantee - requiredHours; }
+    else { cost = c + (requiredHours - s.guarantee) * rate; ugtIfChosen = 0; }
+    if (!best || cost < best.cost) best = { code:s.code, guarantee:s.guarantee, cost, ugtIfChosen };
+  });
+  return best;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   REVENUE (APMT Cobra tariff)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function liftRevenueFor(records){
+  let total = 0;
+  records.forEach(r => {
+    const tier = rateSizeTier(r.sizeChar);
+    if (r.isEmpty) total += tier === '45' ? TARIFF.liftEmpty45 : TARIFF.liftEmpty2040;
+    else total += tier === '45' ? TARIFF.liftLoaded45 : TARIFF.liftLoaded2040;
+  });
+  return total;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   STATE + FILE HANDLING
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const state = { baplie:null, movins:null, restowMoves:0, restow:{ containers:[] } };
+let outOfService = [];
+
+function readAsText(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsText(file); }); }
+function readAsArrayBuffer(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsArrayBuffer(file); }); }
+
+async function handleBaplieFile(file){
+  try {
+    const text = await readAsText(file);
+    state.baplie = parseBaplie(text);
+    document.getElementById('cardBaplie').classList.add('filled');
+    document.getElementById('cardBaplie').classList.remove('error');
+    document.getElementById('statusBaplie').innerHTML = `<strong>${esc(file.name)}</strong><br>${state.baplie.totalOnBoard} containers on board · ${state.baplie.discharge.length} to discharge here`;
+  } catch(err){
+    document.getElementById('cardBaplie').classList.add('error');
+    document.getElementById('statusBaplie').textContent = 'Could not read this file.';
+  }
+  updateVesselSummary(); updateGenerateEnabled();
+}
+async function handleMovinsFile(file){
+  try {
+    const text = await readAsText(file);
+    state.movins = parseMovins(text);
+    document.getElementById('cardMovins').classList.add('filled');
+    document.getElementById('cardMovins').classList.remove('error');
+    document.getElementById('statusMovins').innerHTML = `<strong>${esc(file.name)}</strong><br>${state.movins.load.length} load positions`;
+  } catch(err){
+    document.getElementById('cardMovins').classList.add('error');
+    document.getElementById('statusMovins').textContent = 'Could not read this file.';
+  }
+  updateVesselSummary(); updateGenerateEnabled();
+}
+async function handleRestowFile(file){
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    let containers = [];
+    if (ext === 'txt' || ext === 'edi') {
+      const text = await readAsText(file);
+      const n = parseRestowText(text);
+      containers = Array.from({length:n}, () => ({ containerId:'', finalPos:null }));
+    } else if (ext === 'csv') {
+      const text = await readAsText(file);
+      containers = parseRestowRows(text.split(/\r?\n/).filter(Boolean).map(l=>l.split(','))).containers;
+    } else {
+      const buf = await readAsArrayBuffer(file);
+      const wb = XLSX.read(buf, { type:'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header:1 });
+      containers = parseRestowRows(rows).containers;
+    }
+    state.restow = { containers };
+    state.restowMoves = containers.length * 2;
+    const withPos = containers.filter(c => c.finalPos).length;
+    document.getElementById('cardRestow').classList.add('filled');
+    document.getElementById('statusRestow').innerHTML = `${esc(file.name)} — ${containers.length} restow container(s), ${state.restowMoves} extra moves` +
+      (withPos ? ` (${withPos} with a final position — sequenced discharge→load in their own bays)` : '');
+  } catch(err){
+    document.getElementById('cardRestow').classList.add('error');
+    document.getElementById('statusRestow').textContent = 'Could not read this file.';
+  }
+}
+
+function wireUpload(cardId, inputId, handler){
+  const card = document.getElementById(cardId);
+  const input = document.getElementById(inputId);
+  input.addEventListener('change', e => { if (e.target.files[0]) handler(e.target.files[0]); });
+  card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('dragover'); });
+  card.addEventListener('dragleave', () => card.classList.remove('dragover'));
+  card.addEventListener('drop', e => {
+    e.preventDefault(); card.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) { input.files = e.dataTransfer.files; handler(e.dataTransfer.files[0]); }
+  });
+}
+wireUpload('cardBaplie', 'fileBaplie', handleBaplieFile);
+wireUpload('cardMovins', 'fileMovins', handleMovinsFile);
+wireUpload('cardRestow', 'fileRestow', handleRestowFile);
+
+function updateVesselSummary(){
+  const box = document.getElementById('vesselSummary');
+  const warnBox = document.getElementById('vesselWarning');
+  document.getElementById('clearFilesRow').style.display = (state.baplie || state.movins) ? 'flex' : 'none';
+  if (!state.baplie && !state.movins) { box.style.display = 'none'; warnBox.innerHTML=''; return; }
+  const b = state.baplie, m = state.movins;
+  const vesselName = (b && b.vesselName) || (m && m.vesselName) || '—';
+  const ssl = (b && b.ssl) || (m && m.ssl) || null;
+  const voyage = [b && b.voyage, m && m.voyage].filter(Boolean).join(' / ') || '—';
+  const discharge = b ? b.discharge.length : 0;
+  const load = m ? m.load.length : 0;
+  box.style.display = 'grid';
+  box.innerHTML = `
+    <div class="vs-item"><div class="vs-label">Vessel</div><div class="vs-value">${esc(vesselName)}</div></div>
+    <div class="vs-item"><div class="vs-label">Shipping line</div><div class="vs-value">${esc(ssl ? carrierName(ssl) : '—')}</div></div>
+    <div class="vs-item"><div class="vs-label">Voyage</div><div class="vs-value">${esc(voyage)}</div></div>
+    <div class="vs-item"><div class="vs-label">Discharge / Load moves</div><div class="vs-value">${discharge} / ${load}</div></div>`;
+  let warnings = [];
+  if (b && m && b.vesselName && m.vesselName && b.vesselName !== m.vesselName) warnings.push(`Vessel name differs between files: "${esc(b.vesselName)}" (BAPLIE) vs "${esc(m.vesselName)}" (MOVINS).`);
+  if (b && m && b.ssl && m.ssl && b.ssl !== m.ssl) warnings.push(`Shipping line code differs between files: ${esc(b.ssl)} (BAPLIE) vs ${esc(m.ssl)} (MOVINS).`);
+  if (b && !b.terminalCode) warnings.push('Could not detect this terminal port code from the BAPLIE (LOC+61) — discharge count may be 0.');
+  warnBox.innerHTML = warnings.length ? `<div class="warning-banner">${warnings.map(esc).join('<br>')}</div>` : '';
+}
+
+document.getElementById('btnClearFiles').addEventListener('click', () => {
+  state.baplie = null; state.movins = null; state.restowMoves = 0; state.restow = { containers:[] };
+  ['fileBaplie','fileMovins','fileRestow'].forEach(id => { document.getElementById(id).value = ''; });
+  ['cardBaplie','cardMovins','cardRestow'].forEach(id => document.getElementById(id).classList.remove('filled','error'));
+  document.getElementById('statusBaplie').textContent = 'No file selected.';
+  document.getElementById('statusMovins').textContent = 'No file selected.';
+  document.getElementById('statusRestow').textContent = 'No restows for this call.';
+  document.getElementById('results').classList.remove('show');
+  updateVesselSummary();
+  updateGenerateEnabled();
+});
+
+/* Crane out-of-service dropdown */
+(function renderCraneOOS(){
+  const sel = document.getElementById('craneOOS');
+  sel.innerHTML = '<option value="">All cranes available</option>' +
+    CRANES.map(c => `<option value="${c.n}">Crane ${c.n} down</option>`).join('');
+})();
+document.getElementById('craneOOS').addEventListener('change', e => {
+  const v = e.target.value;
+  outOfService = v ? [Number(v)] : [];
+});
+
+/* Start-hour select, restricted to canonical gang call times */
+(function renderHourSelect(){
+  const sel = document.getElementById('startHour');
+  CANONICAL_HOURS.forEach(h => {
+    const opt = document.createElement('option');
+    opt.value = String(h.hour); opt.textContent = h.label;
+    sel.appendChild(opt);
+  });
+})();
+document.getElementById('startDate').addEventListener('input', updateGenerateEnabled);
+document.getElementById('startHour').addEventListener('change', updateGenerateEnabled);
+
+function currentStartDate(){
+  const dateVal = document.getElementById('startDate').value;
+  const hourVal = document.getElementById('startHour').value;
+  if (!dateVal || hourVal === '') return null;
+  const d = new Date(dateVal + 'T00:00:00');
+  d.setHours(Number(hourVal), 0, 0, 0);
+  return d;
+}
+function updateGenerateEnabled(){
+  const ok = !!state.baplie && !!state.movins && !!currentStartDate();
+  document.getElementById('btnGenerate').disabled = !ok;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   SCENARIO ENGINE
+   ══════════════════════════════════════════════════════════════════════════ */
+
+let lastScenarios = [], lastContext = null;
+
+function computeScenario(N, craneNumbers, groupSims, firstMoveDate, isWeekend){
+  const buckets = partitionByWeight(groupSims, N, item => item.sim.minutes);
+  const spacingWarnings = enforceCraneSpacing(buckets, craneNumbers);
+  const craneSims = craneNumbers.map((cn,i) => simulateCrane(cn, buckets[i] || [], firstMoveDate));
+  addRestowBlock(craneSims, lastContext.restowFallbackMoves);
+
+  const finishTimes = craneSims.map(cs => cs.finish.getTime());
+  const overallFinish = new Date(Math.max(...finishTimes));
+  const operationalTime = (overallFinish.getTime() - firstMoveDate.getTime()) / 3600000;
+  const portHours = operationalTime + (2*IDLE_MIN/60);
+  const totalCraneWorkingHours = craneSims.reduce((s,cs)=>s+cs.totalWorkedMinutes/60, 0);
+  const ci = operationalTime > 0 ? totalCraneWorkingHours / operationalTime : 0;
+
+  const requiredGangHours = (overallFinish.getTime() - lastContext.callDate.getTime()) / 3600000;
+  const family = nearestShiftFamily(lastContext.startHour, isWeekend);
+  const shift = selectShiftCost(family.candidates, requiredGangHours, N-1);
+
+  // UGT ("Horas de los Turno UGT" table): each crane's own last move determines
+  // which chained guarantee window it falls in (see ugtWindowEnd); UGT = that
+  // window's end minus the crane's finish (0 if it worked past the window).
+  const ugtPerCrane = craneSims.map(cs => {
+    const windowEnd = ugtWindowEnd(lastContext.callDate, lastContext.startHour, cs.finish);
+    const remainingH = (windowEnd.getTime() - cs.finish.getTime()) / 3600000;
+    return remainingH > 0 ? remainingH : 0;
+  });
+  const avgUGT = ugtPerCrane.reduce((s,v)=>s+v,0) / ugtPerCrane.length;
+  const totalUGT = ugtPerCrane.reduce((s,v)=>s+v,0);
+
+  const laborRequired = LABOR_REQUIRED[N-1];
+  const operationalManHours = laborRequired * operationalTime;
+  const totalManHours = laborRequired * (operationalTime + avgUGT);
+  const totalMoves = craneSims.reduce((s,cs)=>s+cs.totalMoves,0);
+  const mhpm = totalManHours / totalMoves;
+  const pmph = totalMoves / portHours;
+  const bracket = PHS_BRACKETS.find(b => totalMoves <= b.max);
+  const portHoursBaseline = totalMoves / bracket.pmph;
+  const phsHours = portHours - portHoursBaseline;
+  const phsPct = (portHours / portHoursBaseline) - 1;
+
+  const oogCount = craneSims.reduce((s,cs)=>s+cs.oogCount,0);
+  const twinLifts = craneSims.reduce((s,cs)=>s+cs.twinLifts,0);
+  const dualCycleMoves = craneSims.reduce((s,cs)=>s+cs.dualCycleMoves,0);
+
+  const baseLiftRevenue = liftRevenueFor(lastContext.dischargeRecords) + liftRevenueFor(lastContext.loadRecords);
+  const oogRevenue = oogCount * TARIFF.oogSurcharge;
+  const craneSurchargePct = N >= 4 ? TARIFF.craneSurcharge4plus : (N === 3 ? TARIFF.craneSurcharge3 : 0);
+  const craneSurcharge = craneSurchargePct * (baseLiftRevenue + oogRevenue);
+  const restowRevenue = (lastContext.restowMoves/2) * TARIFF.restowDry;
+  const standbyRevenue = totalUGT * TARIFF.standbyPerGangHour;
+  const revenue = baseLiftRevenue + oogRevenue + craneSurcharge + restowRevenue + standbyRevenue;
+  const cost = shift.cost;
+  const profit = revenue - cost;
+
+  return {
+    N, craneNumbers, craneSims, firstMoveDate, overallFinish,
+    operationalTime, portHours, ci, totalCraneWorkingHours,
+    laborRequired, operationalManHours, totalManHours, avgUGT, totalUGT,
+    mhpm, pmph, phsHours, phsPct, totalMoves,
+    oogCount, twinLifts, dualCycleMoves,
+    shiftCode: shift.code, guarantee: shift.guarantee,
+    cost, revenue, profit, spacingWarnings,
+  };
+}
+
+function pickCraneCounts(availableMax){
+  const all = [1,2,3,4].filter(n => n <= availableMax);
+  if (all.length <= 3) return all;
+  return all.slice(all.length - 3);
+}
+function recommend(scenarios){
+  const priority = (lastContext && lastContext.priority) || 'mhpm_ugt';
+  let best = null, bestScore = -Infinity, bestSecondary = -Infinity;
+  scenarios.forEach(s => {
+    const score = priority === 'phs_pmph'
+      ? (meetsGreen('phsPct', s.phsPct) ? 2 : 0) + (meetsGreen('phsHours', s.phsHours) ? 1 : 0)
+      : (meetsGreen('mhpm', s.mhpm) ? 2 : 0) + (meetsGreen('totalUGT', s.totalUGT) ? 1 : 0);
+    const secondary = priority === 'phs_pmph' ? s.pmph : -s.mhpm; // tie-break within the same score
+    if (score > bestScore || (score === bestScore && secondary > bestSecondary)) {
+      best = s; bestScore = score; bestSecondary = secondary;
+    }
+  });
+  return best;
+}
+function roleLabel(i, total){ if (total===1) return 'Only feasible option'; if (i===0) return 'Cost-optimized'; if (i===total-1) return 'Time-optimized'; return 'Balanced'; }
+
+document.getElementById('btnGenerate').addEventListener('click', () => {
+  const callDate = currentStartDate();
+  const firstMoveDate = new Date(callDate.getTime() + FIRST_MOVE_OFFSET_MIN*60000);
+  const startHour = callDate.getHours();
+  const isWeekend = [0,6].includes(callDate.getDay());
+
+  const restowBuilt = buildRestowRecords(state.baplie, state.restow);
+  const dischargeRecords = (state.baplie ? state.baplie.discharge : []).concat(restowBuilt.dischargeExtra);
+  const loadRecords = (state.movins ? state.movins.load : []).concat(restowBuilt.loadExtra);
+  const groups = buildBayGroups(dischargeRecords, loadRecords);
+  const groupSims = groups.map(g => ({ group:g, sim: simulateBayGroup(g) }));
+
+  const craneOrder = availableCraneOrder(outOfService);
+  const availableMax = craneOrder.length;
+  const priority = document.getElementById('priorityKpi').value;
+
+  lastContext = {
+    callDate, startHour, dischargeRecords, loadRecords, priority,
+    restowMoves: state.restowMoves, restowFallbackMoves: restowBuilt.unmatchedContainers * 2,
+    berth: document.getElementById('berth').value,
+    vesselSide: document.getElementById('vesselSide').value,
+  };
+
+  const counts = pickCraneCounts(Math.max(1, availableMax));
+  lastScenarios = counts.map(N => computeScenario(N, craneOrder.slice(0,N), groupSims, firstMoveDate, isWeekend));
+
+  renderExecSummary(lastScenarios);
+  renderScenarioGantts(lastScenarios);
+  renderConclusion(lastScenarios);
+  renderNotes();
+  document.getElementById('results').classList.add('show');
+  document.getElementById('results').scrollIntoView({ behavior:'smooth', block:'start' });
+});
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RENDER — EXECUTIVE SUMMARY
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function fmt(n, d=1){ return Number(n).toLocaleString('en-US', { minimumFractionDigits:d, maximumFractionDigits:d }); }
+function fmtPct(n){ return (n>=0?'+':'') + (n*100).toFixed(1) + '%'; }
+function fmtHM(date){ return date.toLocaleString('en-US', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }); }
+
+function diffVsRec(s, rec, key, denomAbs){
+  if (s === rec) return null;
+  const denom = denomAbs ? Math.abs(rec[key]) : rec[key];
+  return (s[key] - rec[key]) / denom;
+}
+
+function renderExecSummary(scenarios){
+  const rec = recommend(scenarios);
+  const priorityLabel = lastContext.priority === 'phs_pmph' ? 'PHS % & PMPH' : 'MHPM & UGT';
+  document.getElementById('execSubtitle').textContent =
+    `${scenarios.length} scenario(s) shown — ${scenarios[0].totalMoves.toLocaleString()} total moves · priority indicators: ${priorityLabel}.`;
+  const rows = [
+    ['Total Moves', s => s.totalMoves.toLocaleString(), null],
+    ['Operational Time (hr)', s => fmt(s.operationalTime,2), null],
+    ['Port Hours (hr)', s => fmt(s.portHours,2), null],
+    ['Total Man Hours', s => fmt(s.totalManHours,0), null],
+    ['Operational Man Hours', s => fmt(s.operationalManHours,0), null],
+    ['Avg. UGT (hr)', s => fmt(s.avgUGT,2), null],
+    ['Total UGT (hr)', s => fmt(s.totalUGT,2), s => meetsGreen('totalUGT',s.totalUGT)],
+    ['CI (Crane Intensity)', s => fmt(s.ci,2), null],
+    ['PMPH', s => fmt(s.pmph,2), null],
+    ['MHPM', s => fmt(s.mhpm,3), s => meetsGreen('mhpm',s.mhpm)],
+    ['PHS %', s => fmtPct(s.phsPct), s => meetsGreen('phsPct',s.phsPct)],
+    ['PHS Hours', s => fmt(s.phsHours,2), s => meetsGreen('phsHours',s.phsHours)],
+    ['Cost vs. recommended (%)', s => { const d=diffVsRec(s,rec,'cost',false); return d===null?'—':fmtPct(d); }, s => { const d=diffVsRec(s,rec,'cost',false); return d===null?null:d<=0; }],
+    ['Revenue vs. recommended (%)', s => { const d=diffVsRec(s,rec,'revenue',false); return d===null?'—':fmtPct(d); }, s => { const d=diffVsRec(s,rec,'revenue',false); return d===null?null:d>=0; }],
+    ['Profit vs. recommended (%)', s => { const d=diffVsRec(s,rec,'profit',true); return d===null?'—':fmtPct(d); }, s => { const d=diffVsRec(s,rec,'profit',true); return d===null?null:d>=0; }],
+  ];
+  let html = '<thead><tr><th>Metric</th>' + scenarios.map(s => `<th class="${s===rec?'recommended-col':''}">${s.N}-Crane${s===rec?' <span class="ideal-tag">★ Ideal</span>':''}</th>`).join('') + '</tr></thead><tbody>';
+  rows.forEach(([label, fn, colorFn]) => {
+    html += `<tr><td class="metric-name">${esc(label)}</td>` + scenarios.map(s => {
+      let cls = 'num' + (s===rec?' recommended-col':'');
+      if (colorFn) { const good = colorFn(s); if (good !== null) cls += good ? ' kpi-good' : ' kpi-bad'; }
+      return `<td class="${cls}">${fn(s)}</td>`;
+    }).join('') + '</tr>';
+  });
+  html += '</tbody>';
+  document.getElementById('execTable').innerHTML = html;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RENDER — GANTT (SVG)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+const GANTT_COL_W = 28, GANTT_ROW_H = 26, GANTT_HEADER_H = 32, GANTT_MARGIN = 48, GANTT_MAX_H = 520;
+
+function buildGanttSVG(scenario){
+  const allLabels = [];
+  scenario.craneSims.forEach(cs => cs.blocks.forEach(b => { if (!allLabels.includes(b.label)) allLabels.push(b.label); }));
+  // order columns by first bay number in label
+  allLabels.sort((a,b) => {
+    const na = parseInt(a,10) || 9999, nb = parseInt(b,10) || 9999;
+    return na - nb;
+  });
+  const colIndex = {}; allLabels.forEach((l,i)=>colIndex[l]=i);
+
+  const minTime = scenario.firstMoveDate.getTime();
+  const maxTime = Math.max(...scenario.craneSims.map(cs=>cs.finish.getTime()));
+  const spanMin = Math.max(1, (maxTime - minTime)/60000);
+  const pxPerMin = Math.min(2.2, Math.max(0.35, (GANTT_MAX_H-GANTT_HEADER_H) / spanMin));
+
+  const width = GANTT_MARGIN + allLabels.length*GANTT_COL_W + 170;
+  const height = GANTT_HEADER_H + spanMin*pxPerMin + 30;
+
+  function y(t){ return GANTT_HEADER_H + (t-minTime)/60000*pxPerMin; }
+
+  let svg = `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg" font-family="Arial,sans-serif">`;
+  svg += `<defs><pattern id="hatch-${scenario.N}" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+            <rect width="8" height="8" fill="#f2f2f2"/><line x1="0" y1="0" x2="0" y2="8" stroke="#c9c9c9" stroke-width="3"/>
+          </pattern></defs>`;
+  svg += `<rect x="0" y="0" width="${width}" height="${height}" fill="var(--card,#fff)"/>`;
+
+  // break bands across full width
+  let dayCursor = new Date(minTime); dayCursor.setHours(0,0,0,0);
+  for (let d=0; d<3; d++){
+    BREAKS.forEach(b => {
+      const s = new Date(dayCursor.getTime() + d*86400000 + b.startMin*60000);
+      const e = new Date(dayCursor.getTime() + d*86400000 + b.endMin*60000);
+      if (e.getTime() < minTime || s.getTime() > maxTime) return;
+      const y1 = y(Math.max(s.getTime(), minTime)), y2 = y(Math.min(e.getTime(), maxTime));
+      svg += `<rect x="${GANTT_MARGIN}" y="${y1}" width="${allLabels.length*GANTT_COL_W}" height="${Math.max(2,y2-y1)}" fill="url(#hatch-${scenario.N})" opacity=".8"/>`;
+    });
+  }
+
+  // column headers + gridlines — the header shows the bay-group's center bay only
+  // (e.g. "006" for "005-007"); the full label is still in the tooltip.
+  allLabels.forEach((label,i) => {
+    const x = GANTT_MARGIN + i*GANTT_COL_W;
+    const parts = label.split('-');
+    const shortLabel = parts.length > 1 ? pad3(Math.round((parseInt(parts[0],10)+parseInt(parts[1],10))/2)) : label;
+    svg += `<text x="${x+GANTT_COL_W/2}" y="20" text-anchor="middle" font-size="9" font-weight="700" fill="#666">${esc(shortLabel)}</text>`;
+    svg += `<line x1="${x}" y1="${GANTT_HEADER_H}" x2="${x}" y2="${height-10}" stroke="#e5e7eb" stroke-width="1"/>`;
+  });
+  svg += `<line x1="${GANTT_MARGIN+allLabels.length*GANTT_COL_W}" y1="${GANTT_HEADER_H}" x2="${GANTT_MARGIN+allLabels.length*GANTT_COL_W}" y2="${height-10}" stroke="#e5e7eb" stroke-width="1"/>`;
+
+  // hour gridlines + labels
+  let hourCursor = new Date(minTime); hourCursor.setMinutes(0,0,0); if (hourCursor.getTime()<minTime) hourCursor = new Date(hourCursor.getTime()+3600000);
+  for (let t=hourCursor.getTime(); t<=maxTime; t+=3600000){
+    const yy = y(t);
+    svg += `<line x1="${GANTT_MARGIN}" y1="${yy}" x2="${GANTT_MARGIN+allLabels.length*GANTT_COL_W}" y2="${yy}" stroke="#f0f0f0" stroke-width="1"/>`;
+    const dt = new Date(t);
+    svg += `<text x="4" y="${yy+3}" font-size="9" fill="#888">${dt.toLocaleDateString('en-US',{weekday:'short'})} ${String(dt.getHours()).padStart(2,'0')}:00</text>`;
+  }
+
+  // crane blocks — each block may be split into several segments where a meal
+  // break falls inside it (100% stop: no fill during the break, dashed connector
+  // resuming after), matching the reference Quay Commander style.
+  const tooltipData = [];
+  scenario.craneSims.forEach(cs => {
+    const info = craneInfo(cs.craneNumber);
+    let prevMidX = null, prevBottomY = null;
+    cs.blocks.forEach((b,bi) => {
+      const col = colIndex[b.label];
+      if (col === undefined) return;
+      const x = GANTT_MARGIN + col*GANTT_COL_W + 1.5;
+      const w = GANTT_COL_W - 3;
+      const ttId = 'tt-' + scenario.N + '-' + cs.craneNumber + '-' + bi;
+      tooltipData.push({ id: ttId, craneNumber: cs.craneNumber, label:b.label,
+        start: fmtHM(b.start), end: fmtHM(b.end), moves: Math.round(b.sim.totalMoves), restowMoves: b.sim.restowMoves||0 });
+      const hasDischarge = (b.sim.dischargeMoves||0) > 0, hasLoad = (b.sim.loadMoves||0) > 0;
+      const symbol = hasDischarge && hasLoad ? '▼▲' : (hasDischarge ? '▼' : '▲');
+      const segs = (b.segments && b.segments.length) ? b.segments : [{ start:b.start, end:b.end }];
+      segs.forEach((seg, si) => {
+        const y1 = y(seg.start.getTime()), y2 = Math.max(y1+4, y(seg.end.getTime()));
+        const hatch = b.sim.dualCycleMoves > 0 ? ` fill-opacity="0.88"` : '';
+        svg += `<rect data-tt="${ttId}" x="${x}" y="${y1}" width="${w}" height="${y2-y1}" rx="2" fill="${info.color}"${hatch} stroke="#fff" stroke-width="1" style="cursor:pointer"/>`;
+        if (b.sim.dualCycleMoves > 0) svg += `<rect x="${x}" y="${y1}" width="${w}" height="${y2-y1}" rx="2" fill="url(#hatch-${scenario.N})" opacity=".22" style="pointer-events:none"/>`;
+        if (si === 0 && y2-y1 > 11) svg += `<text x="${x+w/2}" y="${y1+11}" text-anchor="middle" font-size="8" fill="#fff" style="pointer-events:none">${symbol}</text>`;
+        const midX = x + w/2;
+        if (prevMidX !== null) svg += `<line x1="${prevMidX}" y1="${prevBottomY}" x2="${midX}" y2="${y1}" stroke="${info.color}" stroke-width="1" stroke-dasharray="3,2" opacity=".6"/>`;
+        prevMidX = midX; prevBottomY = y2;
+      });
+    });
+  });
+
+  // right-side legend strip
+  const legendX = GANTT_MARGIN + allLabels.length*GANTT_COL_W + 20;
+  scenario.craneNumbers.forEach((cn,i) => {
+    const info = craneInfo(cn);
+    svg += `<rect x="${legendX + i*18}" y="${GANTT_HEADER_H}" width="14" height="${height-GANTT_HEADER_H-10}" fill="${info.color}" opacity=".85"/>`;
+    svg += `<text x="${legendX + i*18 + 7}" y="${GANTT_HEADER_H+14}" text-anchor="middle" font-size="8" fill="#fff" transform="rotate(90 ${legendX+i*18+7} ${GANTT_HEADER_H+14})">CRN${String(cn).padStart(2,'0')}</text>`;
+  });
+
+  svg += '</svg>';
+  return { svg, tooltipData };
+}
+
+function attachGanttTooltips(container, tooltipData, scenario){
+  const tooltip = document.getElementById('ganttTooltip');
+  const byId = {}; tooltipData.forEach(t => byId[t.id]=t);
+  container.querySelectorAll('rect[data-tt]').forEach(rect => {
+    const id = rect.getAttribute('data-tt');
+    const t = byId[id];
+    if (!t) return;
+    const cs = scenario.craneSims.find(c=>c.craneNumber===t.craneNumber);
+    rect.addEventListener('mousemove', e => {
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX+14) + 'px';
+      tooltip.style.top = (e.clientY+10) + 'px';
+      tooltip.innerHTML = `<b>Crane ${t.craneNumber} · ${esc(t.label)}</b><br>
+        ${t.start} → ${t.end}<br>Moves in this block: ${t.moves}${t.restowMoves ? ' (incl. '+t.restowMoves+' restow)' : ''}<br>
+        <hr style="border-color:rgba(255,255,255,.2);margin:.35rem 0">
+        Crane total — Time: ${fmt(cs.totalWorkedMinutes/60,2)}h · Moves: ${cs.totalMoves}<br>
+        Twin lifts: ${cs.twinLifts} · Dual-cycle moves: ${cs.dualCycleMoves} · OOG: ${cs.oogCount} · Breaks hit: ${cs.breaksHit}`;
+    });
+    rect.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+  });
+}
+
+function renderScenarioGantts(scenarios){
+  const rec = recommend(scenarios);
+  const container = document.getElementById('scenarioGantts');
+  container.innerHTML = scenarios.map((s,i) => `
+    <div class="scenario-block ${s===rec?'recommended':''}">
+      <div class="scenario-block-head">
+        <div><span class="scenario-title">${s.N}-Crane Scenario</span><span class="scenario-role">${esc(roleLabel(i,scenarios.length))}</span>
+          <div class="scenario-shift">Cranes ${s.craneNumbers.join(', ')} · Shift ${esc(s.shiftCode)} (guarantee ${fmt(s.guarantee,1)}h) · First move ${fmtHM(s.firstMoveDate)}</div>
+          ${s.spacingWarnings.length ? `<div class="scenario-shift" style="color:var(--bad)">⚠ Crane spacing below minimum: ${s.spacingWarnings.map(w=>`Cranes ${w.craneA}-${w.craneB} (need ${w.required} bay${w.required>1?'s':''}, this vessel's bay layout only allows ${fmt(w.achieved,2)})`).join('; ')}</div>` : ''}
+        </div>
+        ${s===rec?'<span class="scenario-badge">Recommended</span>':''}
+      </div>
+      <div class="scenario-columns">
+        <div class="gantt-col">
+          <div class="gantt-wrap" id="ganttWrap-${s.N}"></div>
+          <div class="gantt-legend">
+            ${s.craneNumbers.map(cn=>`<span><span class="dot" style="background:${craneInfo(cn).color}"></span>Crane ${cn}</span>`).join('')}
+            <span><span class="dot" style="background:#f2f2f2;border:1px solid #c9c9c9"></span>Meal break</span>
+          </div>
+        </div>
+        <div class="metrics-col">
+          <div class="kpi-grid">
+            <div class="kpi-item"><div class="kpi-name">Operational Time</div><div class="kpi-val">${fmt(s.operationalTime,2)} h</div></div>
+            <div class="kpi-item"><div class="kpi-name">Port Hours</div><div class="kpi-val">${fmt(s.portHours,2)} h</div></div>
+            <div class="kpi-item"><div class="kpi-name">CI</div><div class="kpi-val">${fmt(s.ci,2)}</div></div>
+            <div class="kpi-item"><div class="kpi-name">PMPH</div><div class="kpi-val">${fmt(s.pmph,2)}</div></div>
+            <div class="kpi-item threshold ${meetsGreen('mhpm',s.mhpm)?'good':'bad'}"><div class="kpi-name">MHPM</div><div class="kpi-val">${fmt(s.mhpm,3)}</div></div>
+            <div class="kpi-item threshold ${meetsGreen('totalUGT',s.totalUGT)?'good':'bad'}"><div class="kpi-name">Total UGT</div><div class="kpi-val">${fmt(s.totalUGT,2)} h</div></div>
+            <div class="kpi-item threshold ${meetsGreen('phsPct',s.phsPct)?'good':'bad'}"><div class="kpi-name">PHS %</div><div class="kpi-val">${fmtPct(s.phsPct)}</div></div>
+            <div class="kpi-item threshold ${meetsGreen('phsHours',s.phsHours)?'good':'bad'}"><div class="kpi-name">PHS Hours</div><div class="kpi-val">${fmt(s.phsHours,2)} h</div></div>
+            <div class="kpi-item"><div class="kpi-name">Avg. UGT</div><div class="kpi-val">${fmt(s.avgUGT,2)} h</div></div>
+            <div class="kpi-item"><div class="kpi-name">Twin Lifts</div><div class="kpi-val">${s.twinLifts}</div></div>
+            <div class="kpi-item"><div class="kpi-name">Dual-Cycle Moves</div><div class="kpi-val">${s.dualCycleMoves}</div></div>
+            <div class="kpi-item"><div class="kpi-name">OOG Moves</div><div class="kpi-val">${s.oogCount}</div></div>
+            <div class="kpi-item" style="grid-column:span 3"><div class="kpi-name">Total Moves</div><div class="kpi-val">${s.totalMoves.toLocaleString()}</div></div>
+          </div>
+          <div class="delta-box">${otherScenarioDeltas(s, scenarios)}</div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  scenarios.forEach(s => {
+    const built = buildGanttSVG(s);
+    const wrap = document.getElementById('ganttWrap-'+s.N);
+    wrap.innerHTML = built.svg;
+    wrap._svgString = built.svg;
+    attachGanttTooltips(wrap, built.tooltipData, s);
+  });
+}
+
+function otherScenarioDeltas(s, scenarios){
+  const others = scenarios.filter(o => o !== s);
+  if (!others.length) return 'Only one feasible scenario — no comparison available.';
+  return others.map(o => {
+    const dTime = (s.operationalTime - o.operationalTime) / o.operationalTime;
+    const dCost = (s.cost - o.cost) / o.cost;
+    return `<b>vs ${o.N}-Crane:</b> time <span class="${dTime>=0?'delta-pos':'delta-neg'}">${fmtPct(dTime)}</span> ·
+      cost <span class="${dCost>=0?'delta-pos':'delta-neg'}">${fmtPct(dCost)}</span>`;
+  }).join('<br>');
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   RENDER — CONCLUSION + NOTES
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function renderConclusion(scenarios){
+  const rec = recommend(scenarios);
+  const others = scenarios.filter(s => s !== rec);
+  const meetsList = [
+    meetsGreen('totalUGT',rec.totalUGT) ? 'keeps Unused Guarantee Time within target' : null,
+    meetsGreen('mhpm',rec.mhpm) ? 'meets the MHPM productivity target' : null,
+    meetsGreen('phsPct',rec.phsPct) ? 'delivers Port Hours Saved at or beyond the -5% target' : null,
+    meetsGreen('phsHours',rec.phsHours) ? 'beats the Port Hours baseline' : null,
+  ].filter(Boolean);
+  const missList = [
+    !meetsGreen('totalUGT',rec.totalUGT) ? 'Unused Guarantee Time' : null,
+    !meetsGreen('mhpm',rec.mhpm) ? 'MHPM' : null,
+    !meetsGreen('phsPct',rec.phsPct) ? 'PHS %' : null,
+    !meetsGreen('phsHours',rec.phsHours) ? 'PHS Hours' : null,
+  ].filter(Boolean);
+  let text = `<h3>Recommended: the <span class="ai">${rec.N}-crane</span> scenario (Cranes ${rec.craneNumbers.join(', ')})</h3>`;
+  text += `<p>Completes the operation in an estimated ${fmt(rec.operationalTime,2)} operational hours (${fmt(rec.portHours,2)} Port Hours), finishing around ${fmtHM(rec.overallFinish)}.</p>`;
+  if (meetsList.length) text += `<p>This scenario ${meetsList.join(', ')}.</p>`;
+  if (missList.length) text += `<p>It does not fully meet: ${missList.join(', ')} — the closest available trade-off among the scenarios evaluated.</p>`;
+  others.forEach(o => {
+    const dTime = (rec.operationalTime-o.operationalTime)/o.operationalTime;
+    const dCost = (rec.cost-o.cost)/o.cost;
+    text += `<p>Compared with the ${o.N}-crane alternative: ${fmtPct(dTime)} in operational time, ${fmtPct(dCost)} in labor cost.</p>`;
+  });
+  document.getElementById('conclusionBox').innerHTML = text;
+}
+
+function renderNotes(){
+  const priorityLabel = lastContext.priority === 'phs_pmph' ? 'PHS % and PHS Hours' : 'MHPM and Total UGT';
+  document.getElementById('notesBox').innerHTML = `
+    <h4>Methodology notes</h4>
+    <ul>
+      <li>Regular containers are timed at <b>1.85 min/move</b> (32.5 moves/hour); OOG containers (detected via BAPLIE <code>DIM</code> segments only) at <b>3.7 min/move</b> — double.</li>
+      <li>Dual cycle in the hold does not start immediately: OOG discharge first, then one full row discharged (single cycle), then the next row to 75% — only after that does the dual-cycle rate (42 combined moves/hour) apply to the overlapping discharge/load.</li>
+      <li>Twin-lift pairs (20' containers in the odd bays of a bay-group, same row/tier, weight difference ≤5,000 kg) save one move-equivalent of time each.</li>
+      <li><b>Meal breaks</b> (00:00–01:00, 05:50–07:00, 11:50–13:00 and 17:50–19:00) are a 100% stop — every crane's block visually pauses (no fill drawn) and its clock freezes, then both resume exactly when the break ends; the Gantt draws this as two separate bar segments with a dashed connector, not one bar running through the break.</li>
+      <li>A standard idle time of 65 minutes is applied at arrival and departure when computing Port Hours; the first container move is assumed to start 20 minutes after the gang call time.</li>
+      <li>Any of the 6 cranes can work either berth — the tool assigns cranes in south-to-north numeric order among those not marked out of service, and always keeps that order (a crane is never assigned bay-groups that would require crossing another crane's position, since STS cranes share one rail). <b>Anti-collision spacing is enforced</b>: using the vessel's own bay numbers (standard SMDG numbering, where 40'-equivalent bay positions increment by 4, e.g. 006, 010, 014...), the tool requires at least 1 bay of 40' between cranes 1 and 2 and at least 2 bays of 40' between any other adjacent pair, shifting whole bay-groups toward the southern crane until the gap is met. It does not model exact meter position along the 732 m (2,400 ft) wharf (bay-to-meter mapping isn't available from the EDI) — only bay-position count — and if a vessel's own bay layout genuinely can't fit the required spacing for a given crane count, the closest achievable gap is used and flagged in that scenario.</li>
+      <li>Unused Guarantee Time (UGT) uses the "Horas de los Turno UGT" table: starting from the operation's own gang-call hour, the guarantee window rolls forward through the table's standard shift blocks (each one ending, the next one starting as soon as possible after) until reaching the block that contains that crane's own last move; UGT = that block's end clock time minus the crane's finish (0 if it worked past it).</li>
+      <li>Restow moves are billed at the Dry Restow Rate. When the restow list gives a final position (ArvPos), each container is scheduled as a real discharge from its BAPLIE position and a real load at that final position, inside those bays' own queues (discharge before load) — visible in the Gantt at both bay columns. A restow with no usable position data falls back to a generic move split evenly across the cranes and added after each one's bay-group schedule.</li>
+      <li>Revenue = per-move lift rate (loaded/empty × 20'/40' or 45') + OOG surcharge + Additional Crane Surcharge (15% for a 3rd crane, 20% for a 4th, per Section 2.01(B)(4)) + restow revenue + Standby/Guarantee revenue on unused guarantee time (Section 2.05(A)). The 53' container surcharge and wire-rig OOG rate are not modeled.</li>
+      <li>Discharge containers are assumed loaded — the BAPLIE feed used carries no reliable full/empty indicator; load-side loaded/empty status comes from whether MOVINS assigns a container ID.</li>
+      <li>Labor cost is matched to the selected gang call time and the cheapest covering shift code from the Terminal's shift table; hours beyond that shift's guarantee are extrapolated at that shift's blended hourly rate.</li>
+      <li>MHPM is computed as Total Man Hours ÷ Total Moves (hours of labor per move), consistent with the ≤0.92 target.</li>
+      <li>The recommended scenario is chosen primarily on <b>${priorityLabel}</b> (your selected priority), with the remaining KPIs used only as tie-breakers.</li>
+      <li>Cost/Revenue/Profit vs. recommended are shown only as a percentage difference — green means cheaper cost, or higher revenue/profit, than the recommended scenario.</li>
+      <li>Cranes are balanced by operating time: bay-groups go to cranes in physical bay order, and whole bay-groups are shifted across a boundary for as long as that keeps reducing the imbalance between the two neighboring cranes. Balancing never splits a single bay-group between two adjacent cranes (that would put them at zero physical distance, violating the spacing rule above even if worked at different times) — the required safety spacing is applied after balancing and takes priority over it, which can leave a small residual imbalance at that boundary. Not yet modeled: reducing crane count mid-operation at a meal-break boundary to optimize guarantee usage.</li>
+    </ul>`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   PDF REPORT (concise, landscape, includes the sequencing diagram)
+   ══════════════════════════════════════════════════════════════════════════ */
+
+function svgStringToPngDataUrl(svgString, scale=1.5){
+  return new Promise((resolve) => {
+    const blob = new Blob([svgString], { type:'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width*scale; canvas.height = img.height*scale;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve({ dataUrl: canvas.toDataURL('image/png'), w:img.width, h:img.height });
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+document.getElementById('btnPdf').addEventListener('click', async () => {
+  if (!lastScenarios.length) return;
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit:'pt', format:'letter', orientation:'landscape' });
+  const orange = [255,100,65], darkGray = [60,60,70], good=[22,163,74], bad=[220,38,38];
+  const pageW = doc.internal.pageSize.getWidth(), pageH = doc.internal.pageSize.getHeight();
+  const rec = recommend(lastScenarios);
+  const vesselName = (state.baplie && state.baplie.vesselName) || (state.movins && state.movins.vesselName) || 'Vessel';
+  const sslName = (state.baplie && state.baplie.ssl) || (state.movins && state.movins.ssl);
+
+  function slideHeader(title, subtitle){
+    doc.setFillColor(...darkGray); doc.rect(0,0,pageW,46,'F');
+    doc.setFillColor(...orange); doc.rect(0,46,pageW,3,'F');
+    doc.setTextColor(255,255,255); doc.setFontSize(15); doc.setFont('helvetica','bold');
+    doc.text(title, 30, 22);
+    doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(220,220,220);
+    doc.text(subtitle, 30, 36);
+  }
+
+  // Slide 1 — cover
+  slideHeader('Quay Commander — Crane Split Report', `${vesselName}${sslName?(' · '+carrierName(sslName)):''} · Generated ${new Date().toLocaleString('en-US')}`);
+  doc.setFillColor(255,240,235); doc.roundedRect(30, 90, pageW-60, 90, 8, 8, 'F');
+  doc.setTextColor(...orange); doc.setFont('helvetica','bold'); doc.setFontSize(26);
+  doc.text(`Recommended: ${rec.N}-Crane Scenario`, 46, 130);
+  doc.setFont('helvetica','normal'); doc.setFontSize(13); doc.setTextColor(60,60,60);
+  doc.text(`Operational Time ${fmt(rec.operationalTime,2)}h  ·  Port Hours ${fmt(rec.portHours,2)}h  ·  ${rec.totalMoves.toLocaleString()} total moves`, 46, 155);
+  doc.setFontSize(11); doc.setTextColor(100,100,100);
+  doc.text(`Berth: ${lastContext.berth} · Vessel side: ${lastContext.vesselSide} · Cranes used: ${rec.craneNumbers.join(', ')}`, 46, 210);
+  doc.text(`Priority indicators: ${lastContext.priority === 'phs_pmph' ? 'PHS % & PMPH' : 'MHPM & UGT'}`, 46, 226);
+
+  // Slide 2 — executive summary table
+  doc.addPage('letter','landscape');
+  slideHeader('Executive Summary — Scenario Comparison', 'All scenarios evaluated for this operation');
+  const rows = [
+    ['Total Moves', s=>s.totalMoves.toLocaleString(), null],
+    ['Operational Time (hr)', s=>fmt(s.operationalTime,2), null],
+    ['Port Hours (hr)', s=>fmt(s.portHours,2), null],
+    ['CI', s=>fmt(s.ci,2), null],
+    ['PMPH', s=>fmt(s.pmph,2), null],
+    ['MHPM', s=>fmt(s.mhpm,3), s=>meetsGreen('mhpm',s.mhpm)],
+    ['Total UGT (hr)', s=>fmt(s.totalUGT,2), s=>meetsGreen('totalUGT',s.totalUGT)],
+    ['PHS %', s=>fmtPct(s.phsPct), s=>meetsGreen('phsPct',s.phsPct)],
+    ['PHS Hours', s=>fmt(s.phsHours,2), s=>meetsGreen('phsHours',s.phsHours)],
+    ['Cost vs. ideal', s => { const d=diffVsRec(s,rec,'cost',false); return d===null?'—':fmtPct(d); }, s => { const d=diffVsRec(s,rec,'cost',false); return d===null?null:d<=0; }],
+    ['Revenue vs. ideal', s => { const d=diffVsRec(s,rec,'revenue',false); return d===null?'—':fmtPct(d); }, s => { const d=diffVsRec(s,rec,'revenue',false); return d===null?null:d>=0; }],
+    ['Profit vs. ideal', s => { const d=diffVsRec(s,rec,'profit',true); return d===null?'—':fmtPct(d); }, s => { const d=diffVsRec(s,rec,'profit',true); return d===null?null:d>=0; }],
+  ];
+  const body = rows.map(([label, fn]) => [label, ...lastScenarios.map(fn)]);
+  doc.autoTable({
+    startY: 60,
+    head: [['Metric', ...lastScenarios.map(s => s.N+'-Crane'+(s===rec?' (Ideal)':''))]],
+    body,
+    styles: { fontSize:10, cellPadding:5 },
+    headStyles: { fillColor: darkGray, textColor:255 },
+    didParseCell: (data) => {
+      if (data.section === 'body' && data.column.index > 0) {
+        const rowDef = rows[data.row.index];
+        const s = lastScenarios[data.column.index - 1];
+        if (rowDef[2] && s) {
+          const isGood = rowDef[2](s);
+          if (isGood !== null) { data.cell.styles.textColor = isGood ? good : bad; data.cell.styles.fontStyle = 'bold'; }
+        }
+      }
+    },
+    margin: { left:30, right:30 },
+  });
+
+  // One slide per scenario with its Gantt image
+  for (const s of lastScenarios) {
+    doc.addPage('letter','landscape');
+    slideHeader(`${s.N}-Crane Scenario${s===rec?' — Recommended':''}`, `Cranes ${s.craneNumbers.join(', ')} · Shift ${s.shiftCode} · Twin lifts ${s.twinLifts} · Dual-cycle moves ${s.dualCycleMoves} · OOG ${s.oogCount}`);
+    const wrap = document.getElementById('ganttWrap-'+s.N);
+    const svgString = wrap && wrap._svgString;
+    let imgY = 58;
+    if (svgString) {
+      const png = await svgStringToPngDataUrl(svgString, 2);
+      if (png) {
+        const maxW = pageW - 60, maxH = pageH - 130;
+        let w = png.w, h = png.h;
+        const ratio = Math.min(maxW/w, maxH/h, 1);
+        w *= ratio; h *= ratio;
+        doc.addImage(png.dataUrl, 'PNG', 30, imgY, w, h);
+        imgY += h + 12;
+      }
+    }
+    doc.setTextColor(60,60,60); doc.setFontSize(10); doc.setFont('helvetica','normal');
+    doc.text(`Operational Time ${fmt(s.operationalTime,2)}h · Port Hours ${fmt(s.portHours,2)}h · CI ${fmt(s.ci,2)} · MHPM ${fmt(s.mhpm,3)} · Total UGT ${fmt(s.totalUGT,2)}h · PHS ${fmtPct(s.phsPct)}`, 30, Math.min(imgY, pageH-16));
+  }
+
+  // Conclusion + notes slide
+  doc.addPage('letter','landscape');
+  slideHeader('Conclusion & Methodology', 'Recommendation and key assumptions');
+  doc.setTextColor(0,0,0); doc.setFont('helvetica','bold'); doc.setFontSize(13);
+  doc.text(`Recommended: ${rec.N}-crane scenario (Cranes ${rec.craneNumbers.join(', ')})`, 30, 66);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(60,60,60);
+  const others = lastScenarios.filter(x=>x!==rec);
+  let conclLines = [`Operational Time ${fmt(rec.operationalTime,2)}h, Port Hours ${fmt(rec.portHours,2)}h.`];
+  others.forEach(o => conclLines.push(`vs ${o.N}-crane: ${fmtPct((rec.operationalTime-o.operationalTime)/o.operationalTime)} time, ${fmtPct((rec.cost-o.cost)/o.cost)} cost.`));
+  doc.text(doc.splitTextToSize(conclLines.join('  '), pageW-60), 30, 84);
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Methodology notes', 30, 130);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(70,70,70);
+  const priorityLabel = lastContext.priority === 'phs_pmph' ? 'PHS % and PHS Hours' : 'MHPM and Total UGT';
+  const notes = [
+    'Regular containers: 1.85 min/move (32.5/hr). OOG (via BAPLIE DIM segments): 3.7 min/move.',
+    'Dual cycle starts only after OOG discharge, one full row discharged, and the next row to 75% (hold only).',
+    'Twin-lift pairs (20 ft containers, odd bays, same row/tier, weight diff <=5,000 kg) save one move each.',
+    'Meal breaks (00:00-01:00, 05:50-07:00, 11:50-13:00, 17:50-19:00) are a 100% stop - every crane pauses and resumes exactly at the break boundaries; the Gantt shows this as two bar segments with a gap, not one bar running through.',
+    'Any of the 6 cranes can work either berth; cranes are assigned south-to-north among those not out of service and never cross (STS cranes share one rail). Anti-collision spacing is enforced using the vessel\'s own bay numbers (standard SMDG numbering, 40 ft bay positions increment by 4): at least 1 bay of 40 ft between cranes 1-2, at least 2 bays between any other adjacent pair. Exact meter position on the 732 m / 2,400 ft wharf is not modeled, only bay-position count.',
+    'UGT uses the "Horas de los Turno UGT" table: the guarantee window rolls forward through the table\'s standard shift blocks from the gang-call hour until reaching the block containing that crane\'s own last move; UGT = that block\'s end time minus the crane\'s finish.',
+    'Revenue = lift rate (loaded/empty x size tier) + OOG surcharge + additional-crane surcharge (15%/20%) + restow revenue + standby/guarantee revenue on unused guarantee time.',
+    'Restows with a final position (ArvPos) are scheduled as a real discharge at the BAPLIE position and a real load at that final position, inside those bays\' own queues; restows with no position data fall back to a generic move split across cranes.',
+    'MHPM = Total Man Hours / Total Moves, target <=0.92.',
+    'Recommended scenario is chosen primarily on: ' + priorityLabel + ' (selected priority); other KPIs are tie-breakers only.',
+    'Cost/Revenue/Profit vs. ideal are percentage differences only - green means cheaper cost, or higher revenue/profit, than the ideal scenario.',
+    'Cranes are balanced by operating time by shifting whole bay-groups across each boundary; a single bay-group is never split between two adjacent cranes, since that would put them at zero physical distance. Required safety spacing is applied after balancing and takes priority over it. Not yet modeled: reducing crane count mid-operation at a meal-break boundary.',
+  ];
+  let ny = 146;
+  notes.forEach(n => { const l = doc.splitTextToSize('- '+n, pageW-60); doc.text(l, 30, ny); ny += l.length*12+4; });
+
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    doc.setFontSize(8); doc.setFont('helvetica','normal'); doc.setTextColor(160,160,160);
+    doc.text('APM Terminals Mobile · Quay Commander', 30, pageH-14);
+    doc.text(`Slide ${p} / ${totalPages}`, pageW-70, pageH-14);
+  }
+
+  doc.save(`Quay-Commander-${vesselName.replace(/\s+/g,'-')}-crane-split.pdf`);
+});
+</script>
+</body>
+</html>

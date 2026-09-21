@@ -299,6 +299,10 @@ const TOOLS = [
     name:'Inbound BAPLIE Correction', tag:'Vessel · EDI/BAPLIE',
     href:'tools/vessel/baplie-correction/index.html',
     description:'Validates an inbound BAPLIE EDI file, identifies the shipping line automatically, applies that carrier’s formatting-correction rules, and generates a corrected file ready for the TOS.' },
+  { area:'Vessel', order:30, status:'live', icon:'ico-vessel',
+    name:'Quay Commander', tag:'Vessel · Crane Split Optimizer',
+    href:'tools/vessel/quay-commander/index.html',
+    description:'Builds three crane-split scenarios from the BAPLIE, MOVINS and restow files for a vessel call, comparing Port Hours, labor cost, and revenue KPIs — with a downloadable PDF report and recommendation.' },
 ];
 
 /* SHA-256 of each area's password — the gate compares against these
