@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SMART Hub · APM Terminals Mobile</title>
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
 <style>
   @font-face { font-family:'Maersk Text'; font-weight:300; font-style:normal; src:url('assets/fonts/MaerskText-Light.ttf') format('truetype'); font-display:swap; }
   @font-face { font-family:'Maersk Text'; font-weight:400; font-style:normal; src:url('assets/fonts/MaerskText-Regular.ttf') format('truetype'); font-display:swap; }
@@ -175,9 +176,42 @@
                        border-top:1px solid rgba(255,255,255,.06); display:flex; justify-content:space-between; }
   .panel-empty { color:rgba(255,255,255,.4); font-size:.85rem; max-width:420px; text-align:center; line-height:1.6; }
   body.panel-open { overflow:hidden; }
+
+  /* ── ENTRA ID AUTH GATE ──
+     Covers the whole page until Microsoft sign-in completes. Access itself
+     is enforced server-side by Entra ID (App Registration restricted to the
+     APMT Mobile security group) — this overlay just keeps the hub hidden
+     during that check and shows a clear message if access is denied. */
+  .auth-gate { position:fixed; inset:0; z-index:9999; background:var(--dark-gray);
+               display:flex; align-items:center; justify-content:center; padding:1.5rem;
+               transition:opacity .25s ease; }
+  .auth-gate.done { opacity:0; pointer-events:none; }
+  .auth-gate-inner { text-align:center; font-family:var(--font); }
+  .auth-gate-spinner { width:34px; height:34px; margin:0 auto 1.25rem; border-radius:50%;
+                        border:3px solid rgba(255,255,255,.25); border-top-color:var(--orange);
+                        animation:auth-spin .8s linear infinite; }
+  .auth-gate.denied .auth-gate-spinner { display:none; }
+  @keyframes auth-spin { to { transform:rotate(360deg); } }
+  #auth-gate-text { font-size:.88rem; color:var(--neutral-gray); max-width:320px; line-height:1.5; }
+  .auth-gate-retry { margin-top:1.4rem; padding:.6rem 1.5rem; border-radius:8px;
+                      border:1.5px solid var(--orange); background:transparent; color:#fff;
+                      font-family:inherit; font-size:.82rem; font-weight:700; cursor:pointer; }
+  .auth-gate-retry:hover { background:var(--orange); }
+  .sign-out-btn { margin-left:.4rem; padding:.32rem .8rem; border-radius:6px;
+                   border:1px solid rgba(255,255,255,.25); background:transparent; color:var(--light-gray);
+                   font-family:inherit; font-size:.7rem; font-weight:700; cursor:pointer; }
+  .sign-out-btn:hover { border-color:var(--orange); color:var(--orange); }
 </style>
 </head>
 <body>
+
+<!-- ── Entra ID auth gate: covers the page until Microsoft sign-in resolves ── -->
+<div class="auth-gate" id="auth-gate">
+  <div class="auth-gate-inner">
+    <div class="auth-gate-spinner"></div>
+    <div id="auth-gate-text">Signing in with your Maersk account&hellip;</div>
+  </div>
+</div>
 
 <!-- ── Sprite: brand pictograms used across this page (APM Terminals brand kit) ── -->
 <svg style="display:none" aria-hidden="true">
@@ -266,6 +300,75 @@
 <div id="panels"></div>
 
 <script>
+/* ══════════════════════════════════════════════════════════════════════════
+   ENTRA ID SIGN-IN — restricts the whole hub to the APMT Mobile group.
+   The App Registration ("SmartHub", Maersk tenant) is single-tenant and the
+   Enterprise Application has "Assignment required" enabled with only the
+   APMT Mobile security group assigned — Entra ID itself rejects anyone
+   outside that group before they ever reach this page with a valid token.
+   This block only manages the loading/denied UI around that check.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+(function () {
+  const msalConfig = {
+    auth: {
+      clientId: '632f5684-1d22-452b-8eb0-8662eee53e1f',
+      authority: 'https://login.microsoftonline.com/05d75c05-fa1a-42e7-9cf1-eb416c396f2d',
+      redirectUri: window.location.origin + window.location.pathname,
+    },
+    cache: { cacheLocation: 'localStorage' },
+  };
+  const msalInstance = new msal.PublicClientApplication(msalConfig);
+  const authGate = document.getElementById('auth-gate');
+  const authGateText = document.getElementById('auth-gate-text');
+
+  function showDenied(message) {
+    authGate.classList.add('denied');
+    authGateText.textContent = message;
+    if (!authGate.querySelector('.auth-gate-retry')) {
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'auth-gate-retry';
+      retry.textContent = 'Try again';
+      retry.onclick = () => msalInstance.loginRedirect({ scopes: ['User.Read'] });
+      authGate.querySelector('.auth-gate-inner').appendChild(retry);
+    }
+  }
+
+  function grantAccess(account) {
+    authGate.classList.add('done');
+    const userBox = document.querySelector('.user-box');
+    const userName = document.querySelector('.user-name');
+    if (userName && account?.name) userName.textContent = account.name;
+    if (userBox && !userBox.querySelector('.sign-out-btn')) {
+      const signOut = document.createElement('button');
+      signOut.type = 'button';
+      signOut.className = 'sign-out-btn';
+      signOut.textContent = 'Sign out';
+      signOut.onclick = () => msalInstance.logoutRedirect();
+      userBox.appendChild(signOut);
+    }
+  }
+
+  (async () => {
+    try {
+      await msalInstance.initialize();
+      const result = await msalInstance.handleRedirectPromise();
+      const account = result?.account || msalInstance.getAllAccounts()[0];
+      if (!account) {
+        authGateText.textContent = 'Redirecting to Microsoft sign-in…';
+        await msalInstance.loginRedirect({ scopes: ['User.Read'] });
+        return;
+      }
+      msalInstance.setActiveAccount(account);
+      grantAccess(account);
+    } catch (err) {
+      console.error('[SMART Hub auth]', err);
+      showDenied('Access denied. This hub is restricted to APM Terminals Mobile staff. If you believe this is a mistake, contact your Strategy Team lead.');
+    }
+  })();
+})();
+
 /* ══════════════════════════════════════════════════════════════════════════
    OPERATIONAL AREAS — APM Terminals Mobile
    ══════════════════════════════════════════════════════════════════════════ */
